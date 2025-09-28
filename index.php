@@ -1,8 +1,21 @@
 <?php
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+
 require_once 'config/database.php';
 require_once 'core/Database.php';
 require_once 'core/Auth.php';
 require_once 'core/ModuleLoader.php';
+
+// Start session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start([
+        'cookie_secure' => true,
+        'cookie_httponly' => true,
+        'cookie_samesite' => 'Strict'
+    ]);
+}
 
 // Load modules
 $modules = ModuleLoader::loadCoreModules();
@@ -20,6 +33,9 @@ if (isset($_POST['action']) || (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERV
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <title><?php echo APP_NAME; ?> - Southern Food Truck</title>
     <link rel="stylesheet" href="/assets/css/style.css?v=<?php echo time(); ?>">
 </head>
