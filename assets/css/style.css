@@ -1,0 +1,246 @@
+/* =========================================================
+   CY Frying — Clean Modern Red
+   - Bold red, high contrast, minimal effects
+   - Works great light/dark, no flashy gimmicks
+   - Keeps your existing class names
+   ========================================================= */
+
+/* ---------- Tokens ---------- */
+:root{
+  /* Brand */
+  --red-900:#7e0a14;
+  --red-800:#a60f1b;
+  --red-700:#c51423;
+  --red-600:#e21a2a; /* main */
+  --red-500:#ff2a3a; /* highlight */
+  --red-100:#ffe5e7;
+
+  /* Neutrals */
+  --bg:#faf7f6;
+  --surface:#ffffff;
+  --ink:#221a16;
+  --muted:#5b4a41;
+  --border:#e7dedb;
+
+  /* Layout / type */
+  --radius-s:10px;
+  --radius-m:14px;
+  --radius-l:18px;
+  --container:1200px;
+
+  /* Fluid type */
+  --t--1:clamp(.92rem,.88rem + .2vw,1rem);
+  --t-0: clamp(1rem,.95rem + .3vw,1.12rem);
+  --t-1: clamp(1.25rem,1.1rem + .9vw,1.8rem);
+  --t-2: clamp(1.7rem,1.4rem + 1.5vw,2.5rem);
+  --t-3: clamp(2.2rem,1.8rem + 2.3vw,3.2rem);
+
+  /* Effects */
+  --shadow-1:0 8px 24px rgba(0,0,0,.08);
+  --shadow-2:0 16px 36px rgba(0,0,0,.12);
+  --ring:0 0 0 3px rgba(226,26,42,.28);
+}
+
+/* Dark preference (keeps RED, flips surfaces) */
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#121010;
+    --surface:#191515;
+    --ink:#f3efed;
+    --muted:#c8bdb8;
+    --border:#2a2220;
+    --shadow-1:0 8px 24px rgba(0,0,0,.4);
+    --shadow-2:0 16px 36px rgba(0,0,0,.5);
+  }
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after{box-sizing:border-box}
+html{color-scheme:light dark;scroll-behavior:smooth}
+body{
+  margin:0;min-height:100svh;
+  background:
+    radial-gradient(900px 600px at 100% -10%, #fff1f2 0%, transparent 60%),
+    radial-gradient(900px 600px at -10% -10%, #ffe8ea 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font:500 var(--t-0)/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+}
+.container{width:min(100% - 2rem,var(--container));margin-inline:auto}
+img{max-width:100%;display:block}
+
+/* ---------- Header ---------- */
+header{
+  position:sticky;top:0;z-index:1000;
+  background:linear-gradient(135deg,var(--red-800),var(--red-600));
+  color:#fff;box-shadow:var(--shadow-1);
+  backdrop-filter:saturate(1.05) blur(4px);
+}
+.header-inner{
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  gap:1rem;padding:1rem 0
+}
+header h1{
+  grid-column:2;margin:0;text-align:center;
+  font-size:var(--t-2);font-weight:900;letter-spacing:.3px
+}
+nav{grid-column:1 / -1}
+nav ul{list-style:none;display:flex;gap:1.1rem;justify-content:center;margin:.25rem 0 0;padding:0}
+nav a{
+  color:#fff;text-decoration:none;font-weight:800;padding:.35rem .6rem;border-radius:8px
+}
+nav a:hover{background:rgba(255,255,255,.12)}
+
+/* ---------- Hero ---------- */
+.hero{
+  position:relative;color:#fff;text-align:center;
+  padding:clamp(3rem,6vw,6rem) 1rem;
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.25)),
+    linear-gradient(180deg,var(--red-700),var(--red-900)),
+    url('https://images.unsplash.com/photo-1513104890138-7c749659a680?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;
+}
+.hero h1{font-size:var(--t-3);line-height:1.1;margin:0 0 .6rem}
+.hero p{font-size:var(--t-1);max-width:65ch;margin:0 auto 1.2rem;opacity:.98}
+
+/* ---------- Buttons ---------- */
+.btn{
+  --bg:var(--red-600);
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  padding:.9rem 1.2rem;border:0;border-radius:999px;
+  background:linear-gradient(180deg,var(--bg),var(--red-700));color:#fff;
+  font-weight:900;text-transform:uppercase;letter-spacing:.4px;
+  box-shadow:var(--shadow-1);transition:transform .12s ease,filter .2s ease,box-shadow .2s ease
+}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.05);box-shadow:var(--shadow-2)}
+.btn:active{transform:translateY(0)}
+.btn:focus-visible{outline:none;box-shadow:var(--ring),var(--shadow-2)}
+.btn-secondary{--bg:var(--red-900)}
+.btn-outline{
+  background:transparent;color:var(--red-600);
+  border:2px solid rgba(226,26,42,.6);box-shadow:none
+}
+.btn-outline:hover{background:rgba(226,26,42,.06)}
+
+/* ---------- Sections ---------- */
+.section{padding:clamp(2rem,4vw,4rem) 1rem}
+.section .container{display:grid;gap:clamp(1.2rem,2vw,2rem)}
+.section-title{text-align:center}
+.section-title h2{
+  display:inline-grid;place-items:center;gap:.35rem;
+  font-size:var(--t-2);font-weight:900;color:var(--red-800)
+}
+.section-title h2::after{
+  content:"";width:60px;height:3px;border-radius:999px;
+  background:linear-gradient(90deg,transparent,var(--red-600),transparent)
+}
+.section-title p{color:var(--muted);font-size:var(--t--1);max-width:70ch;margin:.55rem auto 0}
+
+/* ---------- Cards ---------- */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-l);box-shadow:var(--shadow-1)
+}
+
+/* ---------- Menu Grid ---------- */
+.menu-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:clamp(1rem,2vw,2rem);container-type:inline-size
+}
+.menu-item{
+  position:relative;padding:1.25rem;border-radius:var(--radius-l);
+  background:linear-gradient(180deg,var(--surface),#fff);
+  border:1px solid var(--border);box-shadow:var(--shadow-1);
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease
+}
+.menu-item:hover{transform:translateY(-4px);box-shadow:var(--shadow-2);border-color:#f0d8d6}
+.menu-item h3{font-size:var(--t-1);margin:.2rem 0 .25rem;font-weight:900;letter-spacing:.3px}
+.menu-item p{color:var(--muted);font-size:var(--t--1);margin:0 0 .4rem}
+.menu-item .price{
+  margin-top:.6rem;font-weight:900;color:var(--red-700);
+  font-variant-numeric:tabular-nums;letter-spacing:.2px
+}
+.menu-item .tag{
+  display:inline-block;margin-top:.45rem;padding:.22rem .6rem;border-radius:999px;
+  font-size:.8rem;font-weight:800;background:#e6f6ea;color:#1f7a3f
+}
+.menu-item .tag.off{background:#ffe8ea;color:var(--red-700)}
+
+@container (min-width:560px){
+  .menu-item{display:grid;grid-template-columns:1fr auto;align-items:start;gap:.8rem}
+  .menu-item .price{justify-self:end}
+}
+
+/* ---------- Order Form ---------- */
+.order-form{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-l);box-shadow:var(--shadow-1);
+  max-width:700px;margin-inline:auto;padding:clamp(1.25rem,3vw,2rem)
+}
+.order-form label{display:block;font-weight:800;margin:.2rem 0 .35rem}
+.order-form input,
+.order-form textarea,
+.order-form select{
+  width:100%;border:1px solid var(--border);border-radius:var(--radius-s);
+  padding:.9rem 1rem;font-size:var(--t--1);color:var(--ink);
+  background:#fff;transition:border-color .2s ease,box-shadow .2s ease
+}
+.order-form input:focus,
+.order-form textarea:focus,
+.order-form select:focus{outline:none;border-color:var(--red-600);box-shadow:var(--ring)}
+.order-form .btn{width:100%;margin-top:.4rem}
+
+/* ---------- Order Summary ---------- */
+.order-summary{margin-bottom:1rem}
+.order-summary h3{font-size:var(--t-1);color:var(--red-800);margin:.25rem 0 .6rem}
+.order-summary ul{list-style:none;padding:0;margin:0}
+.order-summary li{
+  display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:center;
+  padding:.55rem 0;border-bottom:1px dashed var(--border)
+}
+
+/* ---------- Modals ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);
+  display:none;place-items:center;z-index:999
+}
+.modal{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-l);box-shadow:var(--shadow-2);
+  width:min(92vw,560px);padding:1.5rem;display:none;z-index:1000
+}
+.modal.open,.modal-overlay.open{display:grid}
+.modal h2{font-size:var(--t-1);margin:0 0 .6rem}
+.modal .btn{margin-top:.25rem}
+.error-message{
+  color:var(--red-700);background:var(--red-100);border:1px solid #ffc7cd;
+  padding:.7rem .9rem;border-radius:var(--radius-s);font-weight:800
+}
+
+/* ---------- Admin list ---------- */
+#adminMenuItems ul{list-style:none;margin:.5rem 0 0;padding:0}
+#adminMenuItems li{
+  display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:center;
+  padding:.55rem 0;border-bottom:1px dashed var(--border)
+}
+
+/* ---------- Footer ---------- */
+footer{text-align:center;color:var(--muted);padding:2rem 1rem}
+
+/* ---------- Motion safety ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .btn,.menu-item{transition:none}
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width:900px){
+  .header-inner{grid-template-columns:1fr}
+  header h1{grid-column:1}
+}
+@media (max-width:768px){
+  .menu-grid{grid-template-columns:1fr}
+  .section{padding:2rem 1rem}
+}
