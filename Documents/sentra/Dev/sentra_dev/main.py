@@ -893,6 +893,63 @@ class SentraUnified:
             print(f"[FAILED] core update failed: {e}")
             return 1
 
+    def _rsync_deploy(self, repo: Path, ssh_host: str, deploy_to: str, args) -> int:
+        """Deploy using rsync instead of git (for when git repo is corrupted)."""
+        import subprocess
+        
+        print(f"[INFO] Rsync deploying from {repo} to {ssh_host}:{deploy_to}")
+        
+        # Create backup first
+        if not args.no_backup:
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_cmd = [
+                "ssh", ssh_host,
+                f"cd {deploy_to} && sudo mkdir -p backups && "
+                f"sudo tar -czf backups/core_backup_{timestamp}.tar.gz "
+                f"--exclude=backups --exclude=remote.git --exclude='*.pyc' --exclude=__pycache__ . && "
+                f"echo 'Backup created: core_backup_{timestamp}.tar.gz'"
+            ]
+            try:
+                result = subprocess.run(backup_cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    print(f"[INFO] {result.stdout.strip()}")
+            except Exception as e:
+                print(f"[WARN] Backup failed: {e}")
+        
+        # Rsync with proper exclusions
+        rsync_cmd = [
+            "rsync", "-avz", "--delete",
+            "--exclude=.git",
+            "--exclude=remote.git",
+            "--exclude=*.pyc",
+            "--exclude=__pycache__",
+            "--exclude=backups",
+            "--exclude=*.log",
+            "--exclude=state.json",
+            "--exclude=sentra.db",
+            "--exclude=uploads/*",
+            f"{repo}/",
+            f"{ssh_host}:{deploy_to}/"
+        ]
+        
+        try:
+            print(f"[INFO] rsync: {' '.join(rsync_cmd[:3])} ... {ssh_host}:{deploy_to}/")
+            subprocess.run(rsync_cmd, check=True)
+            print(f"[SUCCESS] Rsync deployment completed")
+            
+            # Restart service if requested
+            if args.restart:
+                print(f"[INFO] Restarting sentra-core service on {ssh_host}")
+                restart_cmd = ["ssh", ssh_host, "sudo systemctl restart sentra-core"]
+                subprocess.run(restart_cmd, check=True)
+                print("[SUCCESS] Service restarted")
+            
+            return 0
+        except subprocess.CalledProcessError as e:
+            print(f"[FAILED] rsync deployment failed: {e}")
+            return 1
+
     def cmd_push_core(self, args) -> int:
         """Git push the core repo and trigger a reload."""
         import subprocess
@@ -1098,6 +1155,12 @@ class SentraUnified:
             subprocess.run(cmd, check=True, env=env, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             print(f"[FAILED] git push failed: {e}")
+            # Try rsync as fallback if git push fails due to corruption
+            if "corrupt" in str(e).lower() or "unpack" in str(e).lower():
+                print("[INFO] Git corruption detected, falling back to rsync deployment")
+                deploy_to = args.deploy_to or self.context.config.get("core_deploy_path") or "/opt/sentra-core"
+                ssh_host = args.deploy_host or self.context.config.get("core_deploy_host") or "sentra-vps"
+                return self._rsync_deploy(repo, ssh_host, deploy_to, args)
             return 1
         
         # Deploy to live location via SSH if specified
