@@ -638,6 +638,7 @@ class SentraUnified:
         import zipfile
         import urllib.request
         import urllib.error
+        import subprocess
 
         core_url = normalize_core_url(self.context.config.get("core_url", DEFAULT_CORE_URL))
         if not core_url:
@@ -654,24 +655,193 @@ class SentraUnified:
             print(f"[FAILED] source path not found: {src}")
             return 1
 
+        # Auto-detect project info
+        auto_app_id = args.app_id
+        auto_name = args.name
+        auto_type = args.type
+        auto_description = args.description
+        
+        if not auto_app_id and not auto_name:
+            # Try to detect from directory name or git
+            try:
+                # Get git remote URL
+                git_result = subprocess.run(
+                    ["git", "config", "--get", "remote.origin.url"],
+                    cwd=src, capture_output=True, text=True
+                )
+                if git_result.returncode == 0 and git_result.stdout.strip():
+                    remote_url = git_result.stdout.strip()
+                    # Extract repo name from URL (e.g., sentra-core from git@...:sentra-core.git)
+                    import re
+                    match = re.search(r'/([^/]+?)(?:\.git)?$', remote_url)
+                    if match:
+                        auto_name = match.group(1)
+                        auto_app_id = auto_name
+                        print(f"[AUTO] Detected project: {auto_name}")
+            except Exception:
+                pass
+            
+            # Fallback to directory name
+            if not auto_name:
+                auto_name = src.name
+                auto_app_id = auto_name
+                print(f"[AUTO] Using directory name: {auto_name}")
+        
+        # Auto-detect package type
+        if not auto_type:
+            if (src / "setup.py").exists() or (src / "pyproject.toml").exists():
+                auto_type = "python_package"
+                print(f"[AUTO] Detected type: python_package")
+            elif (src / "package.json").exists():
+                auto_type = "node_package"
+                print(f"[AUTO] Detected type: node_package")
+            elif (src / "Dockerfile").exists():
+                auto_type = "docker_image"
+                print(f"[AUTO] Detected type: docker_image")
+            elif (src / "style.css").exists() and (src / "functions.php").exists():
+                auto_type = "wordpress_theme"
+                print(f"[AUTO] Detected type: wordpress_theme")
+            else:
+                # Default to python_package for sentra projects
+                auto_type = "python_package"
+                print(f"[AUTO] Defaulting to type: python_package")
+
+        # Auto-detect git changes if version/changelog not provided
+        auto_version = args.version
+        auto_changelog = args.changelog or ""
+        
+        if not args.version or not args.changelog:
+            try:
+                # Check if we're in a git repo
+                result = subprocess.run(
+                    ["git", "rev-parse", "--git-dir"],
+                    cwd=src, capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    # Get commit count for version
+                    if not args.version:
+                        commit_count = subprocess.run(
+                            ["git", "rev-list", "--count", "HEAD"],
+                            cwd=src, capture_output=True, text=True
+                        )
+                        if commit_count.returncode == 0:
+                            count = commit_count.stdout.strip()
+                            auto_version = f"1.0.{count}"
+                            print(f"[AUTO] Generated version: {auto_version}")
+                    
+                    # Get recent commits for changelog
+                    if not args.changelog:
+                        log_result = subprocess.run(
+                            ["git", "log", "--pretty=format:%s", "-5"],
+                            cwd=src, capture_output=True, text=True
+                        )
+                        if log_result.returncode == 0:
+                            commits = log_result.stdout.strip().split('\n')
+                            auto_changelog = '\n'.join(f"- {c}" for c in commits if c)
+                            print(f"[AUTO] Generated changelog from last {len(commits)} commits")
+                    
+                    # Show git status
+                    status_result = subprocess.run(
+                        ["git", "status", "--short"],
+                        cwd=src, capture_output=True, text=True
+                    )
+                    if status_result.returncode == 0 and status_result.stdout.strip():
+                        print("[INFO] Uncommitted changes detected:")
+                        print(status_result.stdout.strip())
+            except Exception as e:
+                print(f"[WARN] Git auto-detection failed: {e}")
+        
+        if not auto_version:
+            print("[FAILED] No version provided and auto-detection failed")
+            return 1
+
         package_path = src
         if src.is_dir():
             ts = time.strftime("%Y%m%d-%H%M%S")
             package_path = self.context.runtime_dir / f"sentra-update-{ts}.zip"
-            exclude_dirs = {".git", "__pycache__", ".venv", "venv", ".pytest_cache"}
+            exclude_dirs = {".git", "__pycache__", ".venv", "venv", ".pytest_cache", 
+                          "node_modules", "remote.git", "data", "isos", "uploads",
+                          "work", "build", "dist", ".mypy_cache", ".tox", "backups"}
+            exclude_files = {".env", ".webhook_secret", "*.log", "*.pid", "*.sqlite", "*.db"}
+            
+            # Get changed files if requested
+            changed_files = None
+            if args.only_changed:
+                try:
+                    result = subprocess.run(
+                        ["git", "diff", "--name-only", "HEAD"],
+                        cwd=src, capture_output=True, text=True
+                    )
+                    if result.returncode == 0:
+                        changed_files = set(result.stdout.strip().split('\n'))
+                        print(f"[INFO] Packaging {len(changed_files)} changed files only")
+                except Exception as e:
+                    print(f"[WARN] Could not get changed files: {e}")
+            
+            file_count = 0
+            total_size = 0
+            max_size = 100 * 1024 * 1024  # 100MB limit
+            
+            print(f"[INFO] Creating package from {src}...")
             with zipfile.ZipFile(package_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 for path in src.rglob("*"):
                     if path.is_dir():
                         continue
-                    if path.suffix == ".pyc":
-                        continue
+                    
+                    # Skip excluded directories
                     if any(part in exclude_dirs for part in path.parts):
                         continue
-                    zf.write(path, path.relative_to(src))
+                    
+                    # Skip excluded file types
+                    if path.suffix == ".pyc" or path.name.startswith("."):
+                        continue
+                    
+                    # Only include changed files if requested
+                    if changed_files is not None:
+                        rel_path = str(path.relative_to(src))
+                        if rel_path not in changed_files:
+                            continue
+                    
+                    # Skip large files (>10MB)
+                    try:
+                        file_size = path.stat().st_size
+                        if file_size > 10 * 1024 * 1024:
+                            print(f"[SKIP] Large file: {path.relative_to(src)} ({file_size / 1024 / 1024:.1f}MB)")
+                            continue
+                        
+                        total_size += file_size
+                        if total_size > max_size:
+                            print(f"[FAILED] Package too large (>100MB). Use --source to specify subset.")
+                            return 1
+                    except Exception:
+                        continue
+                    
+                    try:
+                        zf.write(path, path.relative_to(src))
+                        file_count += 1
+                    except Exception as e:
+                        print(f"[WARN] Failed to add {path.name}: {e}")
+            
+            print(f"[INFO] Packaged {file_count} files ({total_size / 1024 / 1024:.1f}MB)")
         elif src.is_file() and src.suffix.lower() != ".zip":
             print("[WARN] source is not a .zip; sending raw file contents")
 
-        payload_data = base64.b64encode(package_path.read_bytes()).decode()
+        # Read file in chunks to avoid memory issues
+        chunk_size = 1024 * 1024  # 1MB chunks
+        payload_bytes = b""
+        try:
+            file_size = package_path.stat().st_size
+            if file_size > 50 * 1024 * 1024:  # 50MB
+                print(f"[FAILED] Package too large for upload ({file_size / 1024 / 1024:.1f}MB). Max 50MB.")
+                return 1
+            
+            with open(package_path, 'rb') as f:
+                while chunk := f.read(chunk_size):
+                    payload_bytes += chunk
+            payload_data = base64.b64encode(payload_bytes).decode()
+        except MemoryError:
+            print(f"[FAILED] Package too large to load into memory")
+            return 1
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -712,15 +882,15 @@ class SentraUnified:
                 print(f"[FAILED] {method} {url}: {e}")
                 return None, {}, ""
 
-        app_id = args.app_id
+        app_id = auto_app_id or args.app_id
         if not app_id:
-            if not args.name or not args.type:
-                print("[FAILED] provide --app-id or (--name and --type) to create app")
+            if not auto_name or not auto_type:
+                print("[FAILED] Could not auto-detect project. Please provide --app-id or (--name and --type)")
                 return 1
             create_payload = {
-                "name": args.name,
-                "description": args.description or "",
-                "package_type": args.type,
+                "name": auto_name,
+                "description": auto_description or f"Auto-detected {auto_type} package",
+                "package_type": auto_type,
                 "author": args.author or CREATOR,
                 "homepage": args.homepage or "",
                 "repo_url": args.repo_url or "",
@@ -729,18 +899,25 @@ class SentraUnified:
             create_url = join_core_url(core_url, "/api/sentra-repo/apps")
             status, body, raw = http_json("POST", create_url, create_payload)
             if status not in (200, 201):
-                print(f"[FAILED] app create failed ({status}): {raw}")
-                return 1
-            app_id = body.get("app_id")
-            if not app_id:
-                print("[FAILED] app_id missing in response")
-                return 1
+                # If app already exists, try to use it
+                if "already exists" in raw.lower() or status == 409:
+                    print(f"[INFO] App '{auto_name}' already exists, using it")
+                    app_id = auto_name
+                else:
+                    print(f"[FAILED] app create failed ({status}): {raw}")
+                    return 1
+            else:
+                app_id = body.get("app_id")
+                if not app_id:
+                    print("[FAILED] app_id missing in response")
+                    return 1
+                print(f"[SUCCESS] Created app: {app_id}")
 
         upload_payload = {
-            "version": args.version,
+            "version": auto_version,
             "channel": args.channel,
             "source_base64": payload_data,
-            "changelog": args.changelog or "",
+            "changelog": auto_changelog,
             "min_core_version": args.min_core_version or "",
             "dependencies": [d for d in (args.dependencies or "").split(",") if d.strip()],
         }
@@ -774,7 +951,7 @@ class SentraUnified:
                 print(f"[FAILED] set channel failed ({status}): {raw}")
                 return 1
 
-        print(f"[SUCCESS] update pushed: app={app_id} version={args.version} channel={args.channel} version_id={version_id}")
+        print(f"[SUCCESS] update pushed: app={app_id} version={auto_version} channel={args.channel} version_id={version_id}")
         return 0
 
     def cmd_update_core(self, args) -> int:
@@ -917,7 +1094,10 @@ class SentraUnified:
             except Exception as e:
                 print(f"[WARN] Backup failed: {e}")
         
-        # Rsync with proper exclusions
+        # Create temporary staging directory on remote
+        staging_dir = f"/tmp/sentra-core-deploy-{os.getpid()}"
+        
+        # Rsync to staging directory first (no sudo required)
         rsync_cmd = [
             "rsync", "-avz", "--delete",
             "--exclude=.git",
@@ -930,12 +1110,21 @@ class SentraUnified:
             "--exclude=sentra.db",
             "--exclude=uploads/*",
             f"{repo}/",
-            f"{ssh_host}:{deploy_to}/"
+            f"{ssh_host}:{staging_dir}/"
         ]
         
         try:
-            print(f"[INFO] rsync: {' '.join(rsync_cmd[:3])} ... {ssh_host}:{deploy_to}/")
+            print(f"[INFO] rsync to staging: {staging_dir}")
             subprocess.run(rsync_cmd, check=True)
+            
+            # Move from staging to production with sudo
+            print(f"[INFO] Moving to production: {deploy_to}")
+            move_cmd = [
+                "ssh", ssh_host,
+                f"sudo rsync -a --delete {staging_dir}/ {deploy_to}/ && sudo rm -rf {staging_dir}"
+            ]
+            subprocess.run(move_cmd, check=True)
+            
             print(f"[SUCCESS] Rsync deployment completed")
             
             # Restart service if requested
@@ -1152,11 +1341,14 @@ class SentraUnified:
                     print(f"[INFO] GIT_SSH_COMMAND={env['GIT_SSH_COMMAND']}")
             elif args.verbose:
                 print("[INFO] Using default SSH configuration (from ~/.ssh/config)")
-            subprocess.run(cmd, check=True, env=env, stderr=subprocess.STDOUT)
+            result = subprocess.run(cmd, check=True, env=env, capture_output=True, text=True)
+            print(result.stdout)
         except subprocess.CalledProcessError as e:
+            error_output = (e.stdout or '') + (e.stderr or '')
+            print(error_output)
             print(f"[FAILED] git push failed: {e}")
             # Try rsync as fallback if git push fails due to corruption
-            if "corrupt" in str(e).lower() or "unpack" in str(e).lower():
+            if "corrupt" in error_output.lower() or "inflate" in error_output.lower() or "unpack" in error_output.lower():
                 print("[INFO] Git corruption detected, falling back to rsync deployment")
                 deploy_to = args.deploy_to or self.context.config.get("core_deploy_path") or "/opt/sentra-core"
                 ssh_host = args.deploy_host or self.context.config.get("core_deploy_host") or "sentra-vps"
@@ -1357,6 +1549,518 @@ echo "Backup created: $BACKUP_NAME"
         print("\n[SUCCESS] Local heartbeat recorded\n")
         return 0
 
+    # ----------------------------------------------------------------------------------
+    # Repository commands
+    # ----------------------------------------------------------------------------------
+    def _get_repo_manager(self):
+        """Get repository manager instance"""
+        from pathlib import Path
+        import json
+        
+        class RepositoryManager:
+            def __init__(self, manifest_path):
+                self.manifest_path = Path(manifest_path)
+                self.manifest = self._load_manifest()
+            
+            def _load_manifest(self):
+                if not self.manifest_path.exists():
+                    return {"packages": []}
+                try:
+                    return json.loads(self.manifest_path.read_text())
+                except Exception:
+                    return {"packages": []}
+            
+            def list_packages(self, filter_type=None):
+                packages = []
+                for pkg_data in self.manifest.get("packages", []):
+                    if filter_type and pkg_data.get("package_type") != filter_type:
+                        continue
+                    packages.append({
+                        "name": pkg_data.get("package_id", "unknown"),
+                        "version": pkg_data.get("version", "unknown"),
+                        "type": pkg_data.get("package_type", "component"),
+                        "description": pkg_data.get("description", ""),
+                        "access": pkg_data.get("access_tier", "internal")
+                    })
+                return sorted(packages, key=lambda p: p["name"])
+            
+            def get_package(self, name):
+                for pkg in self.manifest.get("packages", []):
+                    if pkg.get("package_id") == name:
+                        return pkg
+                return None
+            
+            def search_packages(self, query):
+                results = []
+                query_lower = query.lower()
+                for pkg_data in self.manifest.get("packages", []):
+                    pkg_name = pkg_data.get("package_id", "")
+                    if (query_lower in pkg_name.lower() or 
+                        query_lower in pkg_data.get("description", "").lower() or
+                        query_lower in pkg_data.get("package_type", "").lower() or
+                        query_lower in pkg_data.get("name", "").lower()):
+                        results.append({
+                            "name": pkg_name,
+                            "version": pkg_data.get("version", "unknown"),
+                            "type": pkg_data.get("package_type", "component"),
+                            "description": pkg_data.get("description", "")
+                        })
+                return results
+            
+            def verify_package(self, name):
+                pkg = self.get_package(name)
+                if not pkg:
+                    return False, f"Package '{name}' not found"
+                
+                files = pkg.get("files", [])
+                if not files:
+                    return True, "No files to verify"
+                
+                missing = []
+                repo_base = self.manifest_path.parent.parent
+                
+                for file_path in files:
+                    full_path = repo_base / file_path
+                    if not full_path.exists():
+                        missing.append(file_path)
+                
+                if missing:
+                    return False, f"Missing files: {', '.join(missing[:3])}{'...' if len(missing) > 3 else ''}"
+                
+                return True, f"All {len(files)} files verified"
+        
+        manifest_path = Path.home() / "Documents" / "sentra" / "core" / "repo" / "sentra-repository.json"
+        return RepositoryManager(manifest_path)
+
+    def cmd_repo_list(self, args) -> int:
+        """List all packages in repository"""
+        repo = self._get_repo_manager()
+        packages = repo.list_packages()
+        
+        if not packages:
+            print("No packages found in repository")
+            return 0
+        
+        print(f"\n{'Package':<30} {'Version':<10} {'Type':<15} {'Access':<10}")
+        print("=" * 75)
+        for pkg in packages:
+            print(f"{pkg['name']:<30} {pkg['version']:<10} {pkg['type']:<15} {pkg['access']:<10}")
+        print(f"\nTotal: {len(packages)} packages\n")
+        return 0
+
+    def cmd_repo_search(self, args) -> int:
+        """Search for packages"""
+        repo = self._get_repo_manager()
+        results = repo.search_packages(args.query)
+        
+        if not results:
+            print(f"No packages found matching '{args.query}'")
+            return 0
+        
+        print(f"\nSearch results for '{args.query}':")
+        print(f"{'Package':<30} {'Version':<10} {'Type':<15}")
+        print("=" * 65)
+        for pkg in results:
+            print(f"{pkg['name']:<30} {pkg['version']:<10} {pkg['type']:<15}")
+            print(f"  {pkg['description']}")
+            print()
+        return 0
+
+    def cmd_repo_info(self, args) -> int:
+        """Show detailed package information"""
+        repo = self._get_repo_manager()
+        pkg = repo.get_package(args.package)
+        
+        if not pkg:
+            print(f"❌ Package '{args.package}' not found")
+            return 1
+        
+        print(f"\n📦 {args.package}")
+        print("=" * 60)
+        print(f"Version:     {pkg.get('version', 'unknown')}")
+        print(f"Type:        {pkg.get('package_type', 'component')}")
+        print(f"Access:      {pkg.get('access_tier', 'internal')}")
+        print(f"Author:      {pkg.get('author', 'unknown')}")
+        print(f"Description: {pkg.get('description', 'No description')}")
+        
+        deps = pkg.get("dependencies", [])
+        if deps:
+            print(f"\nDependencies:")
+            for dep in deps:
+                print(f"  - {dep}")
+        
+        reqs = pkg.get("requirements", [])
+        if reqs:
+            print(f"\nRequirements:")
+            for req in reqs:
+                print(f"  - {req}")
+        
+        files = pkg.get("files", [])
+        if files:
+            print(f"\nFiles ({len(files)}):")
+            for f in files[:10]:
+                print(f"  - {f}")
+            if len(files) > 10:
+                print(f"  ... and {len(files) - 10} more")
+        
+        install_path = pkg.get("install_path")
+        if install_path:
+            print(f"\nInstall Path: {install_path}")
+        
+        verified, msg = repo.verify_package(args.package)
+        status = "✅" if verified else "⚠️"
+        print(f"\nVerification: {status} {msg}\n")
+        return 0
+
+    def cmd_repo_verify(self, args) -> int:
+        """Verify package integrity"""
+        repo = self._get_repo_manager()
+        verified, msg = repo.verify_package(args.package)
+        
+        if verified:
+            print(f"✅ {args.package}: {msg}")
+            return 0
+        else:
+            print(f"❌ {args.package}: {msg}")
+            return 1
+
+    def cmd_repo_status(self, args) -> int:
+        """Show repository status and synchronization"""
+        import subprocess
+        
+        repo_dir = Path.home() / "Documents" / "sentra" / "core" / "repo"
+        manifest_path = repo_dir / "sentra-repository.json"
+        
+        print("\n📊 Repository Status")
+        print("=" * 60)
+        print(f"Location: {repo_dir}")
+        print(f"Manifest: {manifest_path}")
+        
+        repo = self._get_repo_manager()
+        packages = repo.list_packages()
+        print(f"\nPackages: {len(packages)} total")
+        
+        types = {}
+        for pkg in packages:
+            pkg_type = pkg["type"]
+            types[pkg_type] = types.get(pkg_type, 0) + 1
+        
+        print("\nBy Type:")
+        for pkg_type, count in sorted(types.items()):
+            print(f"  {pkg_type}: {count}")
+        
+        try:
+            core_dir = Path.home() / "Documents" / "sentra" / "core"
+            result = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=core_dir,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            commit = result.stdout.strip()
+            print(f"\nGit Commit: {commit}")
+            
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=core_dir,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            if result.stdout.strip():
+                print("Status: ⚠️  Uncommitted changes")
+            else:
+                print("Status: ✅ Clean")
+        except Exception as e:
+            print(f"\nGit Status: ⚠️  Error: {e}")
+        
+        print()
+        return 0
+
+    def cmd_repo_sync(self, args) -> int:
+        """Sync repository with remote server"""
+        import subprocess
+        
+        print("\n🔄 Syncing repository...")
+        
+        core_dir = Path.home() / "Documents" / "sentra" / "core"
+        try:
+            result = subprocess.run(
+                ["git", "pull"],
+                cwd=core_dir,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            print(result.stdout)
+            
+            result = subprocess.run(
+                ["git", "log", "-1", "--pretty=format:%s"],
+                cwd=core_dir,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            last_commit = result.stdout.strip()
+            print(f"Latest: {last_commit}")
+            
+            print("\n✅ Repository synced\n")
+            return 0
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Sync failed: {e.stderr}\n")
+            return 1
+
+    def cmd_upload_module(self, args) -> int:
+        """Upload a new module/package to the repository"""
+        import subprocess
+        import tempfile
+        import shutil
+        from datetime import datetime
+        
+        print("\n📦 Uploading new module to repository...")
+        
+        # Get current directory
+        current_dir = Path.cwd()
+        
+        # Auto-detect project info if not provided
+        if not args.name:
+            # Try to detect from git remote URL
+            try:
+                result = subprocess.run(
+                    ["git", "config", "remote.origin.url"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                git_url = result.stdout.strip()
+                
+                # Extract repo name from various git URL formats
+                import re
+                match = re.search(r'/([^/]+?)(?:\.git)?$', git_url)
+                if match:
+                    args.name = match.group(1)
+                    print(f"📝 Detected name from git: {args.name}")
+            except:
+                pass
+            
+            # Fallback to directory name
+            if not args.name:
+                args.name = current_dir.name
+                print(f"📝 Using directory name: {args.name}")
+        
+        # Auto-detect type if not provided
+        if not args.type:
+            if (current_dir / "setup.py").exists() or (current_dir / "pyproject.toml").exists():
+                args.type = "python_package"
+            elif (current_dir / "package.json").exists():
+                args.type = "node_package"
+            elif (current_dir / "Dockerfile").exists():
+                args.type = "docker_image"
+            elif (current_dir / "style.css").exists() and (current_dir / "functions.php").exists():
+                args.type = "wordpress_theme"
+            else:
+                args.type = "python_package"  # Default
+            
+            print(f"📝 Detected type: {args.type}")
+        
+        # Get version
+        if not args.version:
+            # Try to detect from git tags or commit count
+            try:
+                result = subprocess.run(
+                    ["git", "describe", "--tags", "--always"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                args.version = result.stdout.strip()
+            except:
+                # Fallback to commit count
+                try:
+                    result = subprocess.run(
+                        ["git", "rev-list", "--count", "HEAD"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    count = result.stdout.strip()
+                    args.version = f"0.0.{count}"
+                except:
+                    args.version = "0.0.1"
+            
+            print(f"📝 Version: {args.version}")
+        
+        # Generate description if not provided
+        if not args.description:
+            args.description = f"{args.name} - {args.type}"
+        
+        # Create temporary package
+        print(f"\n📦 Creating package from {current_dir}...")
+        
+        # Exclusions for packaging
+        exclude_patterns = [
+            ".git",
+            "__pycache__",
+            "*.pyc",
+            ".pytest_cache",
+            ".vscode",
+            ".idea",
+            "node_modules",
+            "venv",
+            "env",
+            ".env",
+            "*.log",
+            "remote.git",
+            "data",
+            "backups",
+            "isos",
+            "uploads",
+            "*.sqlite",
+            "*.db"
+        ]
+        
+        # Create temporary directory for package
+        temp_dir = Path(tempfile.mkdtemp())
+        package_path = temp_dir / f"{args.name}-{args.version}.tar.gz"
+        
+        try:
+            # Create tarball excluding certain patterns
+            import tarfile
+            
+            def should_exclude(path):
+                """Check if path should be excluded"""
+                path_str = str(path)
+                for pattern in exclude_patterns:
+                    if pattern.startswith("*"):
+                        if path_str.endswith(pattern[1:]):
+                            return True
+                    elif pattern in path_str:
+                        return True
+                return False
+            
+            total_size = 0
+            file_count = 0
+            skipped = []
+            
+            with tarfile.open(package_path, "w:gz") as tar:
+                for item in current_dir.rglob("*"):
+                    if item.is_file():
+                        rel_path = item.relative_to(current_dir)
+                        
+                        # Check exclusions
+                        if should_exclude(rel_path):
+                            continue
+                        
+                        # Check file size
+                        size = item.stat().st_size
+                        if size > 10 * 1024 * 1024:  # 10MB per file
+                            skipped.append(f"{rel_path} ({size / 1024 / 1024:.1f}MB)")
+                            continue
+                        
+                        total_size += size
+                        file_count += 1
+                        tar.add(item, arcname=rel_path)
+            
+            if skipped:
+                print(f"\n⚠️  Skipped {len(skipped)} large files (>10MB):")
+                for s in skipped[:5]:
+                    print(f"  - {s}")
+                if len(skipped) > 5:
+                    print(f"  ... and {len(skipped) - 5} more")
+            
+            package_size = package_path.stat().st_size
+            print(f"\n✅ Package created:")
+            print(f"  Files: {file_count}")
+            print(f"  Size: {package_size / 1024 / 1024:.2f}MB")
+            
+            if package_size > 50 * 1024 * 1024:
+                print(f"\n❌ Package too large (max 50MB)")
+                return 1
+            
+            # Now upload to repository via API
+            print(f"\n📤 Uploading to repository...")
+            
+            # Read API config
+            api_url = self.config.get("core", {}).get("api_url", "http://localhost:8000")
+            api_key = self.config.get("core", {}).get("api_key", "")
+            
+            if not api_key:
+                print("❌ No API key configured. Run: sentra-dev config api-key <key>")
+                return 1
+            
+            # First, create the app/package entry
+            import requests
+            
+            create_url = f"{api_url}/api/repository/packages"
+            headers = {
+                "X-API-Key": api_key,
+                "Content-Type": "application/json"
+            }
+            
+            package_data = {
+                "name": args.name,
+                "type": args.type,
+                "version": args.version,
+                "description": args.description,
+                "published": True
+            }
+            
+            print(f"📝 Creating package entry...")
+            resp = requests.post(create_url, json=package_data, headers=headers)
+            
+            if resp.status_code == 409:
+                print(f"✅ Package '{args.name}' already exists")
+                package_id = None
+                # Try to get package ID
+                try:
+                    search_resp = requests.get(f"{api_url}/api/repository/packages?search={args.name}", headers=headers)
+                    if search_resp.status_code == 200:
+                        packages = search_resp.json()
+                        for pkg in packages:
+                            if pkg.get("name") == args.name:
+                                package_id = pkg.get("id")
+                                break
+                except:
+                    pass
+            elif resp.status_code == 201:
+                result = resp.json()
+                package_id = result.get("id")
+                print(f"✅ Package created: {args.name} (ID: {package_id})")
+            else:
+                print(f"❌ Failed to create package: {resp.status_code} - {resp.text}")
+                return 1
+            
+            # Upload the package file
+            print(f"📤 Uploading package file...")
+            
+            upload_url = f"{api_url}/api/repository/packages/{args.name}/versions/{args.version}/upload"
+            
+            with open(package_path, "rb") as f:
+                files = {"file": (package_path.name, f, "application/gzip")}
+                headers_upload = {"X-API-Key": api_key}
+                
+                resp = requests.post(upload_url, files=files, headers=headers_upload)
+            
+            if resp.status_code in [200, 201]:
+                print(f"\n✅ Successfully uploaded {args.name} v{args.version}")
+                print(f"📦 Size: {package_size / 1024 / 1024:.2f}MB")
+                print(f"📁 Files: {file_count}")
+                return 0
+            else:
+                print(f"❌ Upload failed: {resp.status_code} - {resp.text}")
+                return 1
+                
+        except Exception as e:
+            print(f"\n❌ Upload failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
+        finally:
+            # Cleanup
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+
 
 # --------------------------------------------------------------------------------------
 # CLI
@@ -1439,9 +2143,9 @@ def main() -> int:
     p_push.add_argument("--name", help="Create app name")
     p_push.add_argument("--type", help="Package type (wordpress_theme, wordpress_plugin, python_module, python_package, docker_image, static_site, firmware, config)")
     p_push.add_argument("--description", help="App description")
-    p_push.add_argument("--version", required=True, help="Version string")
+    p_push.add_argument("--version", help="Version string (auto-generated from git commits if not provided)")
     p_push.add_argument("--channel", default="dev", help="Release channel")
-    p_push.add_argument("--changelog", help="Changelog text")
+    p_push.add_argument("--changelog", help="Changelog text (auto-generated from git log if not provided)")
     p_push.add_argument("--min-core-version", help="Minimum core version")
     p_push.add_argument("--dependencies", help="Comma-separated dependencies")
     p_push.add_argument("--tags", help="Comma-separated tags")
@@ -1450,6 +2154,14 @@ def main() -> int:
     p_push.add_argument("--repo-url", help="Repository URL")
     p_push.add_argument("--actor", help="Actor name for approve/sign/set")
     p_push.add_argument("--no-publish", action="store_true", help="Upload only (skip approve/sign/publish)")
+    p_push.add_argument("--only-changed", action="store_true", help="Only package git-tracked changed files")
+
+    # Upload new module
+    p_upload = subparsers.add_parser("upload-module", help="Upload a new module/package to repository")
+    p_upload.add_argument("--name", help="Module name (auto-detected from git or directory)")
+    p_upload.add_argument("--type", help="Module type (python_package, node_package, docker_image, wordpress_theme)")
+    p_upload.add_argument("--version", help="Version (auto-detected from git tags or commit count)")
+    p_upload.add_argument("--description", help="Module description")
 
     # Set core URL
     p_core = subparsers.add_parser("set-core", help="Set Core URL")
@@ -1467,6 +2179,22 @@ def main() -> int:
 
     # Heartbeat (new; safe without crypto/DB)
     subparsers.add_parser("heartbeat", help="Send a heartbeat (optional Core ping)")
+
+    # Repository commands
+    p_repo = subparsers.add_parser("repo-list", help="List all packages in repository")
+    
+    p_rsearch = subparsers.add_parser("repo-search", help="Search for packages")
+    p_rsearch.add_argument("query", help="Search query")
+    
+    p_rinfo = subparsers.add_parser("repo-info", help="Show package information")
+    p_rinfo.add_argument("package", help="Package ID")
+    
+    p_rverify = subparsers.add_parser("repo-verify", help="Verify package integrity")
+    p_rverify.add_argument("package", help="Package ID")
+    
+    p_rstatus = subparsers.add_parser("repo-status", help="Show repository status")
+    
+    p_rsync = subparsers.add_parser("repo-sync", help="Sync repository with remote")
 
     args = parser.parse_args()
     if not args.cmd:
@@ -1502,6 +2230,20 @@ def main() -> int:
             return system.cmd_config(args)
         elif args.cmd == "heartbeat":
             return system.cmd_heartbeat(args)
+        elif args.cmd == "repo-list":
+            return system.cmd_repo_list(args)
+        elif args.cmd == "repo-search":
+            return system.cmd_repo_search(args)
+        elif args.cmd == "repo-info":
+            return system.cmd_repo_info(args)
+        elif args.cmd == "repo-verify":
+            return system.cmd_repo_verify(args)
+        elif args.cmd == "repo-status":
+            return system.cmd_repo_status(args)
+        elif args.cmd == "repo-sync":
+            return system.cmd_repo_sync(args)
+        elif args.cmd == "upload-module":
+            return system.cmd_upload_module(args)
         else:
             print(f"Unknown command: {args.cmd}")
             return 1
