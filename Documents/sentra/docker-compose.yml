@@ -1,39 +1,33 @@
 version: '3.8'
 
 # Sentra Microservices Architecture
-# Each service runs in its own container and communicates via internal network
+# Matches VPS production setup
 
 networks:
   sentra-network:
     driver: bridge
-  sentra-internal:
-    driver: bridge
-    internal: true
 
 volumes:
-  sentra-data:
-  sentra-db:
   sentra-redis:
 
 services:
   # ==================== CORE SERVICES ====================
   
   sentra-core:
-    container_name: sentra-core
-    build:
-      context: ./core
-      dockerfile: Dockerfile
+    build: .
     ports:
-      - "8080:8080"
+      - "8000:8000"
     networks:
       - sentra-network
-      - sentra-internal
     volumes:
-      - sentra-data:/data
-      - ./core:/opt/sentra-core:ro
+      - ./db:/opt/sentra-core/db
+      - ./uploads:/opt/sentra-core/uploads
+      - ./logs:/opt/sentra-core/logs
+      - ./state.json:/opt/sentra-core/state.json
+      - ./licenses:/opt/sentra-core/licenses:ro
     environment:
       - SENTRA_ENV=production
-      - SENTRA_PORT=8080
+      - SENTRA_PORT=8000
       - SENTRA_HOST=0.0.0.0
       - REDIS_URL=redis://sentra-redis:6379
       - SERVICE_REGISTRY=http://sentra-registry:8081
@@ -42,37 +36,33 @@ services:
       - sentra-registry
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/ping"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/core/health').read()"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 5s
   
   # Service Registry - Tracks all running services
   sentra-registry:
-    container_name: sentra-registry
-    build:
-      context: ./services/registry
-      dockerfile: Dockerfile
+    build: ./services/registry
     ports:
       - "8081:8081"
     networks:
-      - sentra-internal
+      - sentra-network
     environment:
       - PORT=8081
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
       interval: 30s
       timeout: 5s
       retries: 3
   
   # Redis - For pub/sub and caching
   sentra-redis:
-    container_name: sentra-redis
     image: redis:7-alpine
     networks:
-      - sentra-internal
+      - sentra-network
     volumes:
       - sentra-redis:/data
     restart: unless-stopped
@@ -80,64 +70,15 @@ services:
   
   # ==================== BUSINESS SERVICES ====================
   
-  # Authentication Service
-  sentra-auth:
-    container_name: sentra-auth
-    build:
-      context: ./services/auth
-      dockerfile: Dockerfile
-    networks:
-      - sentra-internal
-    environment:
-      - SERVICE_NAME=auth
-      - SERVICE_PORT=8082
-      - CORE_URL=http://sentra-core:8080
-      - REGISTRY_URL=http://sentra-registry:8081
-      - REDIS_URL=redis://sentra-redis:6379
-    depends_on:
-      - sentra-core
-      - sentra-redis
-      - sentra-registry
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-  
-  # Deployment Service
-  sentra-deploy:
-    container_name: sentra-deploy
-    build:
-      context: ./services/deploy
-      dockerfile: Dockerfile
-    networks:
-      - sentra-internal
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - SERVICE_NAME=deploy
-      - SERVICE_PORT=8083
-      - CORE_URL=http://sentra-core:8080
-      - REGISTRY_URL=http://sentra-registry:8081
-    depends_on:
-      - sentra-core
-      - sentra-registry
-    restart: unless-stopped
-    privileged: true
-  
-  # DNS Service
+  # DNS Service - Cloudflare DNS management
   sentra-dns:
-    container_name: sentra-dns
-    build:
-      context: ./services/dns
-      dockerfile: Dockerfile
+    build: ./services/dns
     networks:
-      - sentra-internal
+      - sentra-network
     environment:
       - SERVICE_NAME=dns
       - SERVICE_PORT=8084
-      - CORE_URL=http://sentra-core:8080
+      - CORE_URL=http://sentra-core:8000
       - REGISTRY_URL=http://sentra-registry:8081
       - CF_API_TOKEN=${CF_API_TOKEN}
       - CF_ZONE_ID=${CF_ZONE_ID}
@@ -151,18 +92,38 @@ services:
       timeout: 5s
       retries: 3
   
-  # Metrics Service (UPDATED PORT)
-  sentra-metrics:
-    container_name: sentra-metrics
-    build:
-      context: ./services/metrics
-      dockerfile: Dockerfile
+  # Deploy Service - Docker container management
+  sentra-deploy:
+    build: ./services/deploy
     networks:
-      - sentra-internal
+      - sentra-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - SERVICE_NAME=deploy
+      - SERVICE_PORT=8083
+      - CORE_URL=http://sentra-core:8000
+      - REGISTRY_URL=http://sentra-registry:8081
+    depends_on:
+      - sentra-core
+      - sentra-registry
+    restart: unless-stopped
+    privileged: true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  
+  # Metrics Service - System monitoring
+  sentra-metrics:
+    build: ./services/metrics
+    networks:
+      - sentra-network
     environment:
       - SERVICE_NAME=metrics
       - SERVICE_PORT=8087
-      - CORE_URL=http://sentra-core:8080
+      - CORE_URL=http://sentra-core:8000
       - REGISTRY_URL=http://sentra-registry:8081
       - REDIS_URL=redis://sentra-redis:6379
     depends_on:
@@ -176,20 +137,17 @@ services:
       timeout: 5s
       retries: 3
   
-  # Telemetry Service
+  # Telemetry Service - Event logging
   sentra-telemetry:
-    container_name: sentra-telemetry
-    build:
-      context: ./services/telemetry
-      dockerfile: Dockerfile
+    build: ./services/telemetry
     networks:
-      - sentra-internal
+      - sentra-network
     volumes:
-      - sentra-data:/data
+      - ./db:/data
     environment:
       - SERVICE_NAME=telemetry
       - SERVICE_PORT=8085
-      - CORE_URL=http://sentra-core:8080
+      - CORE_URL=http://sentra-core:8000
       - REGISTRY_URL=http://sentra-registry:8081
       - DATA_DIR=/data
     depends_on:
@@ -202,43 +160,38 @@ services:
       timeout: 5s
       retries: 3
   
-  # VPN Service
+  # VPN Service - WireGuard management
   sentra-vpn:
-    container_name: sentra-vpn
-    build:
-      context: ./services/vpn
-      dockerfile: Dockerfile
+    build: ./services/vpn
     networks:
-      - sentra-internal
+      - sentra-network
     cap_add:
       - NET_ADMIN
     environment:
       - SERVICE_NAME=vpn
       - SERVICE_PORT=8086
-      - CORE_URL=http://sentra-core:8080
+      - CORE_URL=http://sentra-core:8000
       - REGISTRY_URL=http://sentra-registry:8081
     depends_on:
       - sentra-core
       - sentra-registry
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
   
   # ==================== DASHBOARD ====================
   
   sentra-dash:
-    container_name: sentra-dash
-    build:
-      context: ./core/static
-      dockerfile: Dockerfile
+    image: nginx:alpine
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
     networks:
       - sentra-network
-      - sentra-internal
     volumes:
-      - ./core/static:/usr/share/nginx/html:ro
-    environment:
-      - API_URL=http://sentra-core:8080
+      - ./static:/usr/share/nginx/html:ro
     depends_on:
       - sentra-core
     restart: unless-stopped

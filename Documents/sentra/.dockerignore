@@ -1,0 +1,53 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+
+# Sentra specific
+sentra-core.pid
+state.json
+state.json.db
+*.backup
+*.backup_*
+
+# Build artifacts
+*.egg-info
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Database (will be mounted as volume)
+db/*.db
+db/*.db-journal
+db/*.db-wal
+
+# Uploads (will be mounted as volume)
+uploads/*
+!uploads/.gitkeep
+
+# Temp files
+*.tmp
+.DS_Store
+
+# Don't include other service directories
+services/
+Dev/
+sentraos/
+scripts/
