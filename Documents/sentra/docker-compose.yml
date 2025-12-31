@@ -72,7 +72,9 @@ services:
   
   # DNS Service - Cloudflare DNS management
   sentra-dns:
-    build: ./services/dns
+    build:
+      context: ./services
+      dockerfile: dns/Dockerfile
     networks:
       - sentra-network
     environment:
@@ -94,7 +96,9 @@ services:
   
   # Deploy Service - Docker container management
   sentra-deploy:
-    build: ./services/deploy
+    build:
+      context: ./services
+      dockerfile: deploy/Dockerfile
     networks:
       - sentra-network
     volumes:
@@ -117,7 +121,9 @@ services:
   
   # Metrics Service - System monitoring
   sentra-metrics:
-    build: ./services/metrics
+    build:
+      context: ./services
+      dockerfile: metrics/Dockerfile
     networks:
       - sentra-network
     environment:
@@ -139,7 +145,9 @@ services:
   
   # Telemetry Service - Event logging
   sentra-telemetry:
-    build: ./services/telemetry
+    build:
+      context: ./services
+      dockerfile: telemetry/Dockerfile
     networks:
       - sentra-network
     volumes:
@@ -162,7 +170,9 @@ services:
   
   # VPN Service - WireGuard management
   sentra-vpn:
-    build: ./services/vpn
+    build:
+      context: ./services
+      dockerfile: vpn/Dockerfile
     networks:
       - sentra-network
     cap_add:

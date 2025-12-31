@@ -10,8 +10,8 @@ RUN apt-get update && \
 
 RUN pip install --no-cache-dir requests
 
-COPY ../base_service.py .
-COPY vpn_service.py .
+COPY base_service.py .
+COPY vpn/vpn_service.py vpn_service.py
 
 EXPOSE 8086
 

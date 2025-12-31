@@ -12,8 +12,8 @@ RUN apt-get update && \
 
 RUN pip install --no-cache-dir requests
 
-COPY ../base_service.py .
-COPY deploy_service.py .
+COPY base_service.py .
+COPY deploy/deploy_service.py deploy_service.py
 
 EXPOSE 8083
 

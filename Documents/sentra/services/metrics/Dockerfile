@@ -4,8 +4,8 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir requests psutil
 
-COPY ../base_service.py .
-COPY metrics_service.py .
+COPY base_service.py .
+COPY metrics/metrics_service.py metrics_service.py
 
 EXPOSE 8087
 
