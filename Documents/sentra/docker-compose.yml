@@ -1,0 +1,206 @@
+version: '3.8'
+
+# Sentra Microservices Architecture
+# Each service runs in its own container and communicates via internal network
+
+networks:
+  sentra-network:
+    driver: bridge
+  sentra-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  sentra-data:
+  sentra-db:
+  sentra-redis:
+
+services:
+  # ==================== CORE SERVICES ====================
+  
+  sentra-core:
+    container_name: sentra-core
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - sentra-network
+      - sentra-internal
+    volumes:
+      - sentra-data:/data
+      - ./core:/opt/sentra-core:ro
+    environment:
+      - SENTRA_ENV=production
+      - SENTRA_PORT=8080
+      - SENTRA_HOST=0.0.0.0
+      - REDIS_URL=redis://sentra-redis:6379
+      - SERVICE_REGISTRY=http://sentra-registry:8081
+    depends_on:
+      - sentra-redis
+      - sentra-registry
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  
+  # Service Registry - Tracks all running services
+  sentra-registry:
+    container_name: sentra-registry
+    build:
+      context: ./services/registry
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    networks:
+      - sentra-internal
+    environment:
+      - PORT=8081
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  
+  # Redis - For pub/sub and caching
+  sentra-redis:
+    container_name: sentra-redis
+    image: redis:7-alpine
+    networks:
+      - sentra-internal
+    volumes:
+      - sentra-redis:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+  
+  # ==================== BUSINESS SERVICES ====================
+  
+  # Authentication Service
+  sentra-auth:
+    container_name: sentra-auth
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    networks:
+      - sentra-internal
+    environment:
+      - SERVICE_NAME=auth
+      - SERVICE_PORT=8082
+      - CORE_URL=http://sentra-core:8080
+      - REGISTRY_URL=http://sentra-registry:8081
+      - REDIS_URL=redis://sentra-redis:6379
+    depends_on:
+      - sentra-core
+      - sentra-redis
+      - sentra-registry
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  
+  # Deployment Service
+  sentra-deploy:
+    container_name: sentra-deploy
+    build:
+      context: ./services/deploy
+      dockerfile: Dockerfile
+    networks:
+      - sentra-internal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - SERVICE_NAME=deploy
+      - SERVICE_PORT=8083
+      - CORE_URL=http://sentra-core:8080
+      - REGISTRY_URL=http://sentra-registry:8081
+    depends_on:
+      - sentra-core
+      - sentra-registry
+    restart: unless-stopped
+    privileged: true
+  
+  # DNS Service
+  sentra-dns:
+    container_name: sentra-dns
+    build:
+      context: ./services/dns
+      dockerfile: Dockerfile
+    networks:
+      - sentra-internal
+    environment:
+      - SERVICE_NAME=dns
+      - SERVICE_PORT=8084
+      - CORE_URL=http://sentra-core:8080
+      - REGISTRY_URL=http://sentra-registry:8081
+    depends_on:
+      - sentra-core
+      - sentra-registry
+    restart: unless-stopped
+  
+  # Metrics Service
+  sentra-metrics:
+    container_name: sentra-metrics
+    build:
+      context: ./services/metrics
+      dockerfile: Dockerfile
+    networks:
+      - sentra-internal
+    environment:
+      - SERVICE_NAME=metrics
+      - SERVICE_PORT=8085
+      - CORE_URL=http://sentra-core:8080
+      - REGISTRY_URL=http://sentra-registry:8081
+      - REDIS_URL=redis://sentra-redis:6379
+    depends_on:
+      - sentra-core
+      - sentra-redis
+      - sentra-registry
+    restart: unless-stopped
+  
+  # VPN Service
+  sentra-vpn:
+    container_name: sentra-vpn
+    build:
+      context: ./services/vpn
+      dockerfile: Dockerfile
+    networks:
+      - sentra-internal
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - SERVICE_NAME=vpn
+      - SERVICE_PORT=8086
+      - CORE_URL=http://sentra-core:8080
+      - REGISTRY_URL=http://sentra-registry:8081
+    depends_on:
+      - sentra-core
+      - sentra-registry
+    restart: unless-stopped
+  
+  # ==================== DASHBOARD ====================
+  
+  sentra-dash:
+    container_name: sentra-dash
+    build:
+      context: ./core/static
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - sentra-network
+      - sentra-internal
+    volumes:
+      - ./core/static:/usr/share/nginx/html:ro
+    environment:
+      - API_URL=http://sentra-core:8080
+    depends_on:
+      - sentra-core
+    restart: unless-stopped
