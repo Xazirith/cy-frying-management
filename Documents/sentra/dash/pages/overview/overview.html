@@ -1,0 +1,185 @@
+<div class="header">
+    <div class="header-subtitle">Control Center • December 7, 2025</div>
+    <div class="header-top">
+        <div>
+            <div class="header-title">Welcome Back, Admin</div>
+            <div style="color: #666; font-size: 0.9rem; margin-top: 0.5rem;">
+                <span class="status-dot online"></span>
+                Live data • All systems operational
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-purple">+ New Task</button>
+            <button class="btn">⚡ Quick Actions</button>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card" id="kpi-modules">
+        <div class="kpi-header">
+            <div class="kpi-label">Active Modules</div>
+            <div class="kpi-icon">📦</div>
+        </div>
+        <div class="kpi-value" id="module-count">--</div>
+        <div class="kpi-change" id="module-info">Loading...</div>
+    </div>
+
+    <div class="kpi-card" id="kpi-uptime">
+        <div class="kpi-header">
+            <div class="kpi-label">System Status</div>
+            <div class="kpi-icon">✓</div>
+        </div>
+        <div class="kpi-value" id="system-status">Online</div>
+        <div class="kpi-change" id="uptime-info">Loading...</div>
+    </div>
+
+    <div class="kpi-card" id="kpi-version">
+        <div class="kpi-header">
+            <div class="kpi-label">Core Version</div>
+            <div class="kpi-icon">⚙️</div>
+        </div>
+        <div class="kpi-value" id="version-number">--</div>
+        <div class="kpi-change" id="git-info">Loading...</div>
+    </div>
+
+    <div class="kpi-card" id="kpi-health">
+        <div class="kpi-header">
+            <div class="kpi-label">API Health</div>
+            <div class="kpi-icon">💚</div>
+        </div>
+        <div class="kpi-value" id="health-status">--</div>
+        <div class="kpi-change positive" id="health-info">Checking...</div>
+    </div>
+</div>
+
+<!-- Live Module List -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span>📦</span> Loaded Modules
+        </div>
+        <button onclick="loadSystemData()" style="background: rgba(0,255,65,0.1); border: 1px solid rgba(0,255,65,0.3); color: #00ff41; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">Refresh</button>
+    </div>
+    <div class="card-body">
+        <div id="modules-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem;">
+            <div style="color: #666;">Loading modules...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Two Column Grid -->
+<div class="grid grid-2">
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span>📋</span> Recent Activity
+            </div>
+            <a href="#" style="color: #00cc33; font-size: 0.85rem;">View All</a>
+        </div>
+        <div class="card-body">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Action</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>John Smith</td>
+                        <td><span class="badge badge-success">Clocked In</span></td>
+                        <td>2 mins ago</td>
+                    </tr>
+                    <tr>
+                        <td>Sarah Johnson</td>
+                        <td><span class="badge badge-info">Task Completed</span></td>
+                        <td>15 mins ago</td>
+                    </tr>
+                    <tr>
+                        <td>Mike Davis</td>
+                        <td><span class="badge badge-warning">Break Started</span></td>
+                        <td>23 mins ago</td>
+                    </tr>
+                    <tr>
+                        <td>Emily Wilson</td>
+                        <td><span class="badge badge-success">Project Updated</span></td>
+                        <td>1 hour ago</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span>⚡</span> Quick Links
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="quick-links">
+                <a href="#employees" class="quick-link" onclick="showSection('employees')">
+                    👥 Manage Employees
+                </a>
+                <a href="#tasks" class="quick-link" onclick="showSection('tasks')">
+                    ✓ View Tasks
+                </a>
+                <a href="#payroll" class="quick-link" onclick="showSection('payroll')">
+                    💰 Process Payroll
+                </a>
+                <a href="#sales" class="quick-link" onclick="showSection('sales')">
+                    💵 Sales Dashboard
+                </a>
+                <a href="#gallery" class="quick-link" onclick="showSection('gallery')">
+                    🖼️ Gallery
+                </a>
+                <a href="#partners" class="quick-link" onclick="showSection('partners')">
+                    🤝 Partners
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Progress -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span>📊</span> Task Load by Status
+        </div>
+    </div>
+    <div class="card-body">
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>In Progress</span>
+                <span style="color: #666;">23 tasks • 49%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 49%"></div>
+            </div>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Pending Review</span>
+                <span style="color: #666;">15 tasks • 32%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 32%"></div>
+            </div>
+        </div>
+        <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Completed</span>
+                <span style="color: #666;">9 tasks • 19%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 19%"></div>
+            </div>
+        </div>
+    </div>
+</div>

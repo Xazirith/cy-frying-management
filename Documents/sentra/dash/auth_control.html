@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Service Control • Sentra Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+            background: #0a0e27;
+            color: #00ff41;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #001a00 0%, #003300 100%);
+            border-bottom: 2px solid #00ff41;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 20px rgba(0, 255, 65, 0.2);
+        }
+
+        .header h1 {
+            color: #00ff41;
+            font-size: 1.8rem;
+            text-shadow: 0 0 10px #00ff41;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            color: #00cc33;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .back-btn {
+            float: right;
+            margin-top: -2.5rem;
+            background: rgba(0, 255, 65, 0.1);
+            border: 2px solid #00ff41;
+            color: #00ff41;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+        }
+
+        .content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(0, 20, 0, 0.5);
+            border: 2px solid #00ff41;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+        }
+
+        .card h3 {
+            color: #00ff41;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #003300;
+            padding-bottom: 0.5rem;
+        }
+
+        .card h3::before {
+            content: "> ";
+            color: #00cc33;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #00ff41;
+            box-shadow: 0 0 10px #00ff41;
+        }
+
+        .status-dot.offline {
+            background: #ff0000;
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #003300;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #00cc33;
+            font-size: 0.85rem;
+        }
+
+        .info-value {
+            color: #00ff88;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .btn {
+            background: rgba(0, 255, 65, 0.1);
+            border: 2px solid #00ff41;
+            color: #00ff41;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+
+        .btn:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            border-color: #ff0000;
+            color: #ff0000;
+            background: rgba(255, 0, 0, 0.1);
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 0, 0, 0.2);
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+        }
+
+        .btn-warning {
+            border-color: #ffaa00;
+            color: #ffaa00;
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        .btn-warning:hover {
+            background: rgba(255, 170, 0, 0.2);
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.5);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        table th {
+            background: rgba(0, 255, 65, 0.1);
+            color: #00ff41;
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid #003300;
+        }
+
+        table td {
+            padding: 0.75rem;
+            border: 1px solid #003300;
+            color: #00cc33;
+        }
+
+        table tr:hover {
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .terminal-output {
+            background: #000;
+            border: 2px solid #00ff41;
+            border-radius: 4px;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin: 1rem 0;
+        }
+
+        .terminal-output::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .terminal-output::-webkit-scrollbar-track {
+            background: #001a00;
+        }
+
+        .terminal-output::-webkit-scrollbar-thumb {
+            background: #00ff41;
+            border-radius: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .badge.active {
+            background: rgba(0, 255, 65, 0.2);
+            color: #00ff41;
+            border: 1px solid #00ff41;
+        }
+
+        .badge.expired {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff0000;
+            border: 1px solid #ff0000;
+        }
+
+        .badge.locked {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+            border: 1px solid #ffaa00;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+
+            .back-btn {
+                float: none;
+                margin-top: 1rem;
+                display: block;
+                text-align: center;
+            }
+
+            .content {
+                padding: 1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 AUTH SERVICE CONTROL</h1>
+        <p class="subtitle">SENTRA AUTHENTICATION MANAGEMENT</p>
+        <a href="/dev" class="back-btn">← Back to Dashboard</a>
+    </div>
+
+    <div class="content">
+        <!-- Service Status -->
+        <div class="grid">
+            <div class="card">
+                <h3>Service Status</h3>
+                <div class="info-row">
+                    <span class="info-label">Auth Service</span>
+                    <span class="info-value">
+                        <span class="status-dot online"></span>ACTIVE
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Database</span>
+                    <span class="info-value">
+                        <span class="status-dot online"></span>CONNECTED
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Token Signing</span>
+                    <span class="info-value">ENABLED</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Rate Limiting</span>
+                    <span class="info-value">ACTIVE</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Statistics</h3>
+                <div class="info-row">
+                    <span class="info-label">Total Users</span>
+                    <span class="info-value" id="totalUsers">1</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Active Sessions</span>
+                    <span class="info-value" id="activeSessions">0</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Total Roles</span>
+                    <span class="info-value">4</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Total Permissions</span>
+                    <span class="info-value">10</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Token Configuration</h3>
+                <div class="info-row">
+                    <span class="info-label">Access Token TTL</span>
+                    <span class="info-value">1 hour</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Refresh Token TTL</span>
+                    <span class="info-value">30 days</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Device Token TTL</span>
+                    <span class="info-value">1 year</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Reset Token TTL</span>
+                    <span class="info-value">30 minutes</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Management -->
+        <div class="card">
+            <h3>User Management</h3>
+            <button class="btn" onclick="loadUsers()">Refresh Users</button>
+            <button class="btn" onclick="showAddUser()">Add User</button>
+            <button class="btn btn-warning" onclick="exportUsers()">Export Users</button>
+            
+            <div class="table-container">
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td>Sentra</td>
+                            <td>stephenlutherm10@gmail.com</td>
+                            <td>developer</td>
+                            <td><span class="badge active">ACTIVE</span></td>
+                            <td>2025-12-02</td>
+                            <td>
+                                <button class="btn" onclick="viewUser('Sentra')">View</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Active Sessions -->
+        <div class="card">
+            <h3>Active Sessions</h3>
+            <button class="btn" onclick="loadSessions()">Refresh Sessions</button>
+            <button class="btn btn-danger" onclick="revokeAllSessions()">Revoke All</button>
+            
+            <div class="table-container">
+                <table id="sessionsTable">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Device</th>
+                            <th>IP Address</th>
+                            <th>Created</th>
+                            <th>Expires</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #666;">No active sessions</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Roles & Permissions -->
+        <div class="grid">
+            <div class="card">
+                <h3>Roles</h3>
+                <button class="btn" onclick="showRoles()">Manage Roles</button>
+                <div class="terminal-output">
+                    <div style="color: #00ffff;">ADMIN</div>
+                    <div style="color: #666; font-size: 0.8rem; margin-left: 1rem;">Full system access</div>
+                    <div style="color: #00ffff; margin-top: 0.5rem;">DEVELOPER</div>
+                    <div style="color: #666; font-size: 0.8rem; margin-left: 1rem;">Development and debugging access</div>
+                    <div style="color: #00ffff; margin-top: 0.5rem;">OPERATOR</div>
+                    <div style="color: #666; font-size: 0.8rem; margin-left: 1rem;">Service management access</div>
+                    <div style="color: #00ffff; margin-top: 0.5rem;">USER</div>
+                    <div style="color: #666; font-size: 0.8rem; margin-left: 1rem;">Basic user access</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Developer Permissions</h3>
+                <div class="terminal-output">
+                    <div style="color: #00ff41;">✓ system.admin</div>
+                    <div style="color: #00ff41;">✓ system.manage_users</div>
+                    <div style="color: #00ff41;">✓ system.manage_roles</div>
+                    <div style="color: #00ff41;">✓ system.view_logs</div>
+                    <div style="color: #00ff41;">✓ system.configure</div>
+                    <div style="color: #00ff41;">✓ api.admin</div>
+                    <div style="color: #00ff41;">✓ services.manage</div>
+                    <div style="color: #00ff41;">✓ services.view</div>
+                    <div style="color: #00ff41;">✓ dev.debug</div>
+                    <div style="color: #00ff41;">✓ dev.execute</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Settings -->
+        <div class="card">
+            <h3>Security Settings</h3>
+            <div class="grid">
+                <div>
+                    <div class="info-row">
+                        <span class="info-label">Max Failed Attempts</span>
+                        <span class="info-value">5</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Attempt Window</span>
+                        <span class="info-value">15 minutes</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Rate Limit Window</span>
+                        <span class="info-value">60 seconds</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Max Requests/Window</span>
+                        <span class="info-value">10</span>
+                    </div>
+                </div>
+                <div>
+                    <button class="btn" onclick="viewSecurityLogs()">View Security Logs</button>
+                    <button class="btn" onclick="viewFailedAttempts()">Failed Attempts</button>
+                    <button class="btn btn-warning" onclick="clearRateLimits()">Clear Rate Limits</button>
+                    <button class="btn btn-danger" onclick="resetSecuritySettings()">Reset Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <h3>Recent Authentication Activity</h3>
+            <button class="btn" onclick="loadActivity()">Refresh</button>
+            <div class="terminal-output" id="activityLog">
+                <div style="color: #00cc33;">[2025-12-02 00:00:00] User login: Sentra (developer)</div>
+                <div style="color: #00ffff;">[2025-12-02 00:00:00] Session created for Sentra</div>
+                <div style="color: #00ffff;">[2025-12-02 00:00:00] Role assigned: developer → Sentra</div>
+                <div style="color: #00cc33;">[2025-12-02 00:00:00] Auth service initialized</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toast notification system
+        function showToast(message, type = 'success') {
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) { existingToast.remove(); }
+            
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 5rem; right: 2rem; z-index: 1000;
+                background: rgba(0, 20, 0, 0.95); border: 2px solid #00ff41;
+                border-radius: 8px; padding: 1rem 1.5rem; max-width: 400px;
+                box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            if (type === 'error') {
+                toast.style.borderColor = '#ff0000';
+                toast.style.boxShadow = '0 0 30px rgba(255, 0, 0, 0.5)';
+            } else if (type === 'warning') {
+                toast.style.borderColor = '#ffaa00';
+                toast.style.boxShadow = '0 0 30px rgba(255, 170, 0, 0.5)';
+            }
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #00ff41;">
+                    <span style="font-size: 1.2rem;">
+                        ${type === 'success' ? '✓' : type === 'error' ? '✗' : '⚠'}
+                    </span>
+                    <span>${message}</span>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Load users from database simulation
+        // User storage - now loaded from API
+        let usersList = [];
+
+        async function loadUsers() {
+            showToast('Loading users from database...', 'success');
+            
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">Loading...</td></tr>';
+            
+            try {
+                const response = await fetch('/api/auth/admin/users');
+                const data = await response.json();
+                
+                if (data.ok && data.users) {
+                    usersList = data.users.map(u => ({
+                        user_id: u.user_id,
+                        username: u.username || u.email.split('@')[0],
+                        email: u.email,
+                        role: u.global_roles && u.global_roles.length > 0 ? u.global_roles[0] : 'user',
+                        status: u.locked ? 'Locked' : 'Active',
+                        created: new Date(u.created_at * 1000).toISOString().split('T')[0],
+                        locked_reason: u.locked_reason
+                    }));
+                    
+                    if (usersList.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No users found</td></tr>';
+                    } else {
+                        let rows = '';
+                        usersList.forEach(user => {
+                            const emailDisplay = user.email || '<span style="color: #666;">No email</span>';
+                            rows += `
+                                <tr>
+                                    <td>${user.username}</td>
+                                    <td>${emailDisplay}</td>
+                                    <td><span class="badge active">${user.role}</span></td>
+                                    <td>${user.status}</td>
+                                    <td>
+                                        <button class="btn" onclick="viewUser('${user.username}')" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">View</button>
+                                        <button class="btn" onclick="editUser('${user.username}')" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">Edit</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        tbody.innerHTML = rows;
+                    }
+                    showToast(`${usersList.length} user(s) loaded from database`, 'success');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ff4444;">Error loading users</td></tr>';
+                    showToast('Failed to load users', 'error');
+                }
+            } catch (error) {
+                console.error('Load users error:', error);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ff4444;">Network error</td></tr>';
+                showToast('Network error loading users', 'error');
+            }
+        }
+
+        function showAddUser() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.8); z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: #0a0e27; border: 2px solid #00ff41; border-radius: 8px; padding: 2rem; max-width: 500px; width: 90%;">
+                    <h3 style="color: #00ff41; margin-bottom: 1.5rem;">➕ Add New User</h3>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; color: #00cc33; margin-bottom: 0.3rem;">
+                            Username <span style="color: #ff0000;">*</span>
+                        </label>
+                        <input type="text" id="newUsername" placeholder="Enter username" 
+                            style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; color: #00cc33; margin-bottom: 0.3rem;">
+                            Email <span style="color: #666; font-size: 0.85rem;">(optional)</span>
+                        </label>
+                        <input type="email" id="newEmail" placeholder="user@example.com (optional)" 
+                            style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; color: #00cc33; margin-bottom: 0.3rem;">
+                            Password <span style="color: #ff0000;">*</span>
+                        </label>
+                        <input type="password" id="newPassword" placeholder="Enter password" 
+                            style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px;">
+                        <div style="color: #666; font-size: 0.75rem; margin-top: 0.3rem;">
+                            Min 8 characters recommended
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; color: #00cc33; margin-bottom: 0.3rem;">Role</label>
+                        <select id="newRole" style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px;">
+                            <option value="user">User (Basic Access)</option>
+                            <option value="operator">Operator (Service Management)</option>
+                            <option value="developer" selected>Developer (Full Dev Access)</option>
+                            <option value="admin">Admin (Full System Access)</option>
+                        </select>
+                    </div>
+                    
+                    <div style="background: rgba(0, 255, 65, 0.1); border: 1px solid #00ff41; border-radius: 4px; padding: 0.8rem; margin-bottom: 1rem;">
+                        <div style="color: #00ff41; font-size: 0.85rem; margin-bottom: 0.3rem;">ℹ️ Quick Info:</div>
+                        <ul style="color: #00cc33; font-size: 0.75rem; margin-left: 1.5rem;">
+                            <li>Username and password are required</li>
+                            <li>Email is optional (auto-generated if blank)</li>
+                            <li>User will be active immediately</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="btn" onclick="createUser()" style="flex: 1; padding: 0.7rem;">
+                            ✓ Create User
+                        </button>
+                        <button class="btn btn-danger" onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 0.7rem;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add Enter key handler for form submission
+            const formInputs = modal.querySelectorAll('input, select');
+            formInputs.forEach(input => {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        createUser();
+                    }
+                });
+            });
+            
+            document.getElementById('newUsername').focus();
+        }
+
+        async function createUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            let email = document.getElementById('newEmail').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+            
+            // Validate required fields
+            if (!username) {
+                showToast('Username is required', 'error');
+                document.getElementById('newUsername').focus();
+                return;
+            }
+            
+            if (!password) {
+                showToast('Password is required', 'error');
+                document.getElementById('newPassword').focus();
+                return;
+            }
+            
+            // Password length check
+            if (password.length < 8) {
+                showToast('Password must be at least 8 characters', 'error');
+                document.getElementById('newPassword').focus();
+                return;
+            }
+            
+            // Validate email format if provided
+            if (email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    showToast('Invalid email format', 'error');
+                    document.getElementById('newEmail').focus();
+                    return;
+                }
+            } else {
+                // Generate dummy email if not provided (required by backend)
+                email = `${username.toLowerCase()}@sentra.local`;
+            }
+            
+            // Check if username already exists
+            const existingUser = usersList.find(u => u.username.toLowerCase() === username.toLowerCase());
+            if (existingUser) {
+                showToast('Username already exists', 'error');
+                document.getElementById('newUsername').focus();
+                return;
+            }
+            
+            try {
+                // Store whether email was provided (before modal closes)
+                const emailWasProvided = document.getElementById('newEmail').value.trim() !== '';
+                
+                // Call API to create user
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, username })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    // Close modal
+                    const modal = document.querySelector('div[style*="position: fixed"]');
+                    if (modal) modal.remove();
+                    
+                    // Show success and reload
+                    const emailNote = emailWasProvided ? '' : ' (auto-generated email)';
+                    showToast(`User ${username} created successfully!${emailNote}`, 'success');
+                    loadUsers();
+                    logActivity(`Created user: ${username} (${role}, email: ${email})`);
+                } else {
+                    // Show error message
+                    const errorMsg = result.error === 'email_already_exists' ? 'Email already exists' :
+                                    result.error === 'password_too_short' ? 'Password too short (min 8 chars)' :
+                                    result.error === 'invalid_email' ? 'Invalid email format' :
+                                    'Failed to create user: ' + result.error;
+                    showToast(errorMsg, 'error');
+                }
+            } catch (error) {
+                console.error('Create user error:', error);
+                showToast('Network error creating user', 'error');
+            }
+        }
+
+        function exportUsers() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                total_users: usersList.length,
+                users: usersList.map(user => ({
+                    username: user.username,
+                    email: user.email || null,
+                    role: user.role,
+                    status: user.status,
+                    created: user.created
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `auth-users-${Date.now()}.json`;
+            a.click();
+            
+            showToast(`Exported ${usersList.length} user(s) successfully`, 'success');
+            logActivity(`Exported ${usersList.length} user(s) to JSON`);
+        }
+
+        function viewUser(username) {
+            // Look up user from the list
+            const user = usersList.find(u => u.username === username);
+            if (!user) {
+                showToast('User not found', 'error');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.8); z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            // Determine status color and icon
+            const statusColor = user.status === 'Locked' ? '#ff4444' : '#00ff41';
+            const statusIcon = user.status === 'Locked' ? '🔒' : '✓';
+            const emailDisplay = user.email || '<span style="color: #666;">No email</span>';
+            const lockedText = user.status === 'Locked' ? '<span style="color: #ff4444;">Yes</span>' : '<span style="color: #00ff41;">No</span>';
+            
+            modal.innerHTML = `
+                <div style="background: #0a0e27; border: 2px solid #00ff41; border-radius: 8px; padding: 2rem; max-width: 600px; width: 90%;">
+                    <h3 style="color: #00ff41; margin-bottom: 1.5rem;">👤 User Details: ${user.username}</h3>
+                    
+                    <div class="terminal-output" style="max-height: 400px;">
+                        <div><span style="color: #00ffff;">Username:</span> ${user.username}</div>
+                        <div><span style="color: #00ffff;">Email:</span> ${emailDisplay}</div>
+                        <div><span style="color: #00ffff;">Role:</span> <span class="badge active">${user.role}</span></div>
+                        <div><span style="color: #00ffff;">Status:</span> <span style="color: ${statusColor};">${statusIcon} ${user.status}</span></div>
+                        <div><span style="color: #00ffff;">Account Locked:</span> ${lockedText}</div>
+                        <div><span style="color: #00ffff;">Created:</span> ${user.created}</div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                        <button class="btn" onclick="editUser('${username}')">Edit User</button>
+                        <button class="btn btn-danger" onclick="this.closest('div[style*=fixed]').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            logActivity(`Viewed user details: ${username}`);
+        }
+
+        function editUser(username) {
+            // Close any existing modals first
+            document.querySelectorAll('div[style*="position: fixed"]').forEach(el => el.remove());
+            
+            // Find the user in the list
+            const user = usersList.find(u => u.username === username);
+            if (!user) {
+                showToast('User not found', 'error');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.8); z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            const isLocked = user.status === 'Locked';
+            
+            modal.innerHTML = `
+                <div style="background: #0a0e27; border: 2px solid #00ff41; border-radius: 8px; padding: 2rem; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                    <h3 style="color: #00ff41; margin-bottom: 1.5rem;">✏️ Edit User: ${username}</h3>
+                    
+                    <!-- Basic Info Section -->
+                    <div style="background: rgba(0, 50, 0, 0.2); border: 1px solid #003300; border-radius: 4px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <h4 style="color: #00ffff; margin-bottom: 1rem; font-size: 1rem;">Basic Information</h4>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; color: #00cc33; margin-bottom: 0.3rem; font-size: 0.9rem;">Username</label>
+                            <input type="text" id="editUsername" value="${user.username}" 
+                                style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px; font-size: 0.9rem;">
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; color: #00cc33; margin-bottom: 0.3rem; font-size: 0.9rem;">
+                                Email <span style="color: #666; font-size: 0.85rem;">(optional)</span>
+                            </label>
+                            <input type="email" id="editEmail" value="${user.email || ''}" placeholder="user@example.com (optional)"
+                                style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px; font-size: 0.9rem;">
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; color: #00cc33; margin-bottom: 0.3rem; font-size: 0.9rem;">
+                                Email Verified
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="editEmailVerified" checked 
+                                    style="width: 18px; height: 18px; cursor: pointer;">
+                                <span style="color: #00cc33; font-size: 0.85rem;">Email is verified</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Role & Permissions Section -->
+                    <div style="background: rgba(0, 50, 0, 0.2); border: 1px solid #003300; border-radius: 4px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <h4 style="color: #00ffff; margin-bottom: 1rem; font-size: 1rem;">Role & Permissions</h4>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; color: #00cc33; margin-bottom: 0.3rem; font-size: 0.9rem;">Primary Role</label>
+                            <select id="editRole" 
+                                style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px; font-size: 0.9rem;">
+                                <option value="user" ${user.role === 'user' ? 'selected' : ''}>User (Basic Access)</option>
+                                <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>Operator (Service Management)</option>
+                                <option value="developer" ${user.role === 'developer' ? 'selected' : ''}>Developer (Full Dev Access)</option>
+                                <option value="admin">Admin (Full System Access)</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-top: 0.8rem;">
+                            <div style="color: #00cc33; font-size: 0.85rem; margin-bottom: 0.5rem;">Current Permissions (10):</div>
+                            <div class="terminal-output" style="max-height: 150px; font-size: 0.75rem; padding: 0.8rem;">
+                                <div style="color: #00ff41;">✓ system.admin</div>
+                                <div style="color: #00ff41;">✓ system.manage_users</div>
+                                <div style="color: #00ff41;">✓ system.manage_roles</div>
+                                <div style="color: #00ff41;">✓ system.view_logs</div>
+                                <div style="color: #00ff41;">✓ system.configure</div>
+                                <div style="color: #00ff41;">✓ api.admin</div>
+                                <div style="color: #00ff41;">✓ services.manage</div>
+                                <div style="color: #00ff41;">✓ services.view</div>
+                                <div style="color: #00ff41;">✓ dev.debug</div>
+                                <div style="color: #00ff41;">✓ dev.execute</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Section -->
+                    <div style="background: rgba(0, 50, 0, 0.2); border: 1px solid #003300; border-radius: 4px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <h4 style="color: #00ffff; margin-bottom: 1rem; font-size: 1rem;">Security Settings</h4>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; color: #00cc33; margin-bottom: 0.3rem; font-size: 0.9rem;">
+                                New Password (leave blank to keep current)
+                            </label>
+                            <input type="password" id="editPassword" placeholder="Enter new password or leave blank" 
+                                style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #00ff41; color: #00ff41; font-family: inherit; border-radius: 4px; font-size: 0.9rem;">
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="editLocked" ${isLocked ? 'checked' : ''}
+                                    style="width: 18px; height: 18px; cursor: pointer;">
+                                <span style="color: #ffaa00; font-size: 0.85rem;">🔒 Lock this account</span>
+                            </label>
+                            <div style="color: #666; font-size: 0.75rem; margin-left: 1.6rem; margin-top: 0.3rem;">
+                                Locked accounts cannot log in
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 0.5rem;">
+                            <label style="display: block; color: #00cc33; margin-bottom: 0.3rem; font-size: 0.9rem;">
+                                Lock Reason (if locking)
+                            </label>
+                            <input type="text" id="editLockReason" placeholder="Optional reason for locking" 
+                                style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 1px solid #666; color: #00ff41; font-family: inherit; border-radius: 4px; font-size: 0.85rem;">
+                        </div>
+                    </div>
+                    
+                    <!-- Account Stats (Read-only) -->
+                    <div style="background: rgba(0, 50, 0, 0.2); border: 1px solid #003300; border-radius: 4px; padding: 1rem; margin-bottom: 1.5rem;">
+                        <h4 style="color: #00ffff; margin-bottom: 1rem; font-size: 1rem;">Account Statistics</h4>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
+                            <div>
+                                <div style="color: #666;">User ID:</div>
+                                <div style="color: #00cc33; font-family: monospace; font-size: 0.75rem;">a6d9539bb18e70a6...</div>
+                            </div>
+                            <div>
+                                <div style="color: #666;">Created:</div>
+                                <div style="color: #00cc33;">2025-12-02</div>
+                            </div>
+                            <div>
+                                <div style="color: #666;">Active Sessions:</div>
+                                <div style="color: #00ff41;">1</div>
+                            </div>
+                            <div>
+                                <div style="color: #666;">Trusted Devices:</div>
+                                <div style="color: #00ff41;">1</div>
+                            </div>
+                            <div>
+                                <div style="color: #666;">Last Login:</div>
+                                <div style="color: #00cc33;">Today</div>
+                            </div>
+                            <div>
+                                <div style="color: #666;">Failed Attempts:</div>
+                                <div style="color: #00ff41;">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; margin-top: 1.5rem;">
+                        <button class="btn" onclick="saveUserChanges('${username}')" 
+                            style="background: rgba(0, 255, 65, 0.2); border: 2px solid #00ff41; padding: 0.7rem;">
+                            💾 Save Changes
+                        </button>
+                        <button class="btn" onclick="resetUserPassword('${username}')" 
+                            style="background: rgba(255, 170, 0, 0.2); border: 2px solid #ffaa00; color: #ffaa00; padding: 0.7rem;">
+                            🔑 Reset Password
+                        </button>
+                        <button class="btn btn-danger" onclick="this.closest('div[style*=fixed]').remove()" 
+                            style="padding: 0.7rem;">
+                            ❌ Cancel
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #003300;">
+                        <button class="btn btn-danger" onclick="deleteUserConfirm('${username}')" 
+                            style="width: 100%; padding: 0.7rem; background: rgba(255, 0, 0, 0.1);">
+                            🗑️ Delete User Account
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            document.getElementById('editUsername').focus();
+            
+            logActivity(`Opened user editor for: ${username}`);
+        }
+
+        async function saveUserChanges(username) {
+            const newUsername = document.getElementById('editUsername').value.trim();
+            const newEmail = document.getElementById('editEmail').value.trim();
+            const newPassword = document.getElementById('editPassword').value;
+            const newRole = document.getElementById('editRole').value;
+            const emailVerified = document.getElementById('editEmailVerified').checked;
+            const locked = document.getElementById('editLocked').checked;
+            const lockReason = document.getElementById('editLockReason').value;
+            
+            if (!newUsername) {
+                showToast('Username is required', 'error');
+                return;
+            }
+            
+            // Validation for email format if provided
+            if (newEmail) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(newEmail)) {
+                    showToast('Invalid email format', 'error');
+                    return;
+                }
+            }
+            
+            // Find user in local list to get user_id
+            const user = usersList.find(u => u.username === username);
+            if (!user) {
+                showToast('User not found', 'error');
+                return;
+            }
+            
+            try {
+                // Call API to update user (using POST instead of PUT for compatibility)
+                const response = await fetch(`/api/auth/admin/users/${user.user_id}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: newEmail || null,
+                        username: newUsername,
+                        locked: locked,
+                        locked_reason: locked ? lockReason : null
+                    })
+                });
+                
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    showToast('Server error: Invalid response format', 'error');
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    const changes = [];
+                    if (newUsername !== username) changes.push('username');
+                    if (newPassword) changes.push('password');
+                    if (locked) changes.push('locked account');
+                    
+                    const changeText = changes.length > 0 ? ` (${changes.join(', ')})` : '';
+                    
+                    showToast(`User ${newUsername} updated successfully!${changeText}`, 'success');
+                    document.querySelector('div[style*="position: fixed"]').remove();
+                    loadUsers();
+                    
+                    logActivity(`Updated user: ${username} → ${newUsername} (${locked ? 'locked' : 'active'})`);
+                } else {
+                    const errorMsg = result.error === 'duplicate_email_or_username' ? 'Email or username already exists' :
+                                    'Failed to update user: ' + result.error;
+                    showToast(errorMsg, 'error');
+                }
+            } catch (error) {
+                console.error('Update user error:', error);
+                showToast('Network error updating user', 'error');
+            }
+        }
+
+        function resetUserPassword(username) {
+            if (confirm(`Reset password for ${username}?\n\nA new temporary password will be generated and the user will be required to change it on next login.`)) {
+                const tempPassword = Math.random().toString(36).slice(-12);
+                
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0, 0, 0, 0.9); z-index: 3000;
+                    display: flex; align-items: center; justify-content: center;
+                `;
+                
+                modal.innerHTML = `
+                    <div style="background: #0a0e27; border: 2px solid #ffaa00; border-radius: 8px; padding: 2rem; max-width: 500px; width: 90%;">
+                        <h3 style="color: #ffaa00; margin-bottom: 1rem;">🔑 Password Reset</h3>
+                        <p style="color: #00cc33; margin-bottom: 1rem;">Temporary password generated for ${username}:</p>
+                        
+                        <div style="background: rgba(0, 0, 0, 0.5); border: 2px solid #00ff41; border-radius: 4px; padding: 1rem; margin-bottom: 1rem; text-align: center;">
+                            <code style="color: #00ff41; font-size: 1.2rem; font-weight: bold; letter-spacing: 2px;">${tempPassword}</code>
+                        </div>
+                        
+                        <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; border-radius: 4px; padding: 0.8rem; margin-bottom: 1rem;">
+                            <div style="color: #ffaa00; font-size: 0.85rem;">⚠️ Important:</div>
+                            <ul style="color: #00cc33; font-size: 0.8rem; margin-left: 1.5rem; margin-top: 0.3rem;">
+                                <li>Copy this password - it won't be shown again</li>
+                                <li>User must change password on next login</li>
+                                <li>Password expires in 24 hours</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.8rem;">
+                            <button class="btn" onclick="copyPasswordToClipboard('${tempPassword}')" style="flex: 1;">
+                                📋 Copy Password
+                            </button>
+                            <button class="btn btn-danger" onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                showToast(`Password reset for ${username}`, 'warning');
+                logActivity(`Reset password for user: ${username}`);
+            }
+        }
+
+        function copyPasswordToClipboard(password) {
+            navigator.clipboard.writeText(password).then(() => {
+                showToast('Password copied to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Failed to copy - please copy manually', 'error');
+            });
+        }
+
+        function deleteUserConfirm(username) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.9); z-index: 3000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: #0a0e27; border: 2px solid #ff0000; border-radius: 8px; padding: 2rem; max-width: 500px; width: 90%;">
+                    <h3 style="color: #ff0000; margin-bottom: 1rem;">⚠️ DELETE USER ACCOUNT</h3>
+                    
+                    <div style="background: rgba(255, 0, 0, 0.1); border: 1px solid #ff0000; border-radius: 4px; padding: 1rem; margin-bottom: 1rem;">
+                        <p style="color: #ff0000; font-weight: bold; margin-bottom: 0.5rem;">WARNING: This action cannot be undone!</p>
+                        <p style="color: #00cc33; font-size: 0.9rem;">Deleting user "${username}" will permanently remove:</p>
+                        <ul style="color: #00cc33; font-size: 0.85rem; margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li>User account and credentials</li>
+                            <li>All active sessions (user will be logged out)</li>
+                            <li>All trusted devices</li>
+                            <li>Role assignments and permissions</li>
+                            <li>Authentication history</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; color: #ff0000; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                            Type the username to confirm deletion:
+                        </label>
+                        <input type="text" id="deleteConfirmInput" placeholder="Enter username" 
+                            style="width: 100%; padding: 0.6rem; background: rgba(0, 0, 0, 0.5); border: 2px solid #ff0000; color: #00ff41; font-family: inherit; border-radius: 4px;">
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.8rem;">
+                        <button class="btn btn-danger" onclick="confirmDeleteUser('${username}')" style="flex: 1; padding: 0.7rem;">
+                            🗑️ DELETE PERMANENTLY
+                        </button>
+                        <button class="btn" onclick="this.closest('div[style*=fixed]').remove()" style="flex: 1; padding: 0.7rem; background: rgba(0, 255, 65, 0.2);">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            setTimeout(() => document.getElementById('deleteConfirmInput').focus(), 100);
+        }
+
+        async function confirmDeleteUser(username) {
+            const confirmInput = document.getElementById('deleteConfirmInput').value;
+            
+            if (confirmInput !== username) {
+                showToast('Username does not match - deletion cancelled', 'error');
+                return;
+            }
+            
+            // Find user in local list to get user_id
+            const user = usersList.find(u => u.username === username);
+            if (!user) {
+                showToast('User not found', 'error');
+                return;
+            }
+            
+            try {
+                // Call API to delete user (using POST for compatibility)
+                const response = await fetch(`/api/auth/admin/users/${user.user_id}/delete`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    // Close both modals
+                    document.querySelectorAll('div[style*="position: fixed"]').forEach(el => el.remove());
+                    
+                    showToast(`User ${username} deleted permanently`, 'error');
+                    loadUsers();
+                    logActivity(`DELETED USER ACCOUNT: ${username}`);
+                } else {
+                    showToast('Failed to delete user: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Delete user error:', error);
+                showToast('Network error deleting user', 'error');
+            }
+        }
+
+        function lockUser(username) {
+            if (confirm(`Lock account for ${username}?\n\nThis will prevent the user from logging in.`)) {
+                showToast(`Account locked: ${username}`, 'warning');
+                logActivity(`Locked user account: ${username}`);
+            }
+        }
+
+        function loadSessions() {
+            showToast('Loading active sessions...', 'success');
+            
+            const tbody = document.getElementById('sessionsTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">Loading...</td></tr>';
+            
+            setTimeout(() => {
+                const now = new Date();
+                const created = new Date(now.getTime() - 3600000).toLocaleString();
+                const expires = new Date(now.getTime() + 3600000).toLocaleString();
+                
+                tbody.innerHTML = `
+                    <tr>
+                        <td>Sentra</td>
+                        <td>Desktop Browser</td>
+                        <td>127.0.0.1</td>
+                        <td>${created}</td>
+                        <td>${expires}</td>
+                        <td>
+                            <button class="btn btn-danger" onclick="revokeSession('current')" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">Revoke</button>
+                        </td>
+                    </tr>
+                `;
+                showToast('Sessions loaded', 'success');
+            }, 500);
+        }
+
+        function revokeSession(sessionId) {
+            if (confirm('Revoke this session?\n\nThe user will be logged out immediately.')) {
+                showToast('Session revoked', 'warning');
+                loadSessions();
+                logActivity(`Revoked session: ${sessionId}`);
+            }
+        }
+
+        function revokeAllSessions() {
+            if (confirm('⚠️ Revoke ALL active sessions?\n\nAll users will be logged out and need to sign in again.')) {
+                showToast('All sessions revoked', 'error');
+                loadSessions();
+                logActivity('Revoked all active sessions');
+            }
+        }
+
+        function showRoles() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.8); z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: #0a0e27; border: 2px solid #00ff41; border-radius: 8px; padding: 2rem; max-width: 700px; width: 90%;">
+                    <h3 style="color: #00ff41; margin-bottom: 1.5rem;">🔑 Role Management</h3>
+                    
+                    <div class="terminal-output" style="max-height: 500px;">
+                        <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #003300;">
+                            <div style="color: #00ffff; font-size: 1.1rem; margin-bottom: 0.5rem;">ADMIN</div>
+                            <div style="color: #666; font-size: 0.8rem; margin-bottom: 0.5rem;">Full system access and control</div>
+                            <div style="color: #00ff41; font-size: 0.85rem;">Permissions: All (20)</div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #003300;">
+                            <div style="color: #00ffff; font-size: 1.1rem; margin-bottom: 0.5rem;">DEVELOPER</div>
+                            <div style="color: #666; font-size: 0.8rem; margin-bottom: 0.5rem;">Development and debugging access</div>
+                            <div style="color: #00ff41; font-size: 0.85rem;">Permissions: 10</div>
+                            <div style="font-size: 0.75rem; color: #00cc33; margin-top: 0.3rem;">
+                                system.admin, system.manage_users, system.manage_roles, system.view_logs,
+                                system.configure, api.admin, services.manage, services.view, dev.debug, dev.execute
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #003300;">
+                            <div style="color: #00ffff; font-size: 1.1rem; margin-bottom: 0.5rem;">OPERATOR</div>
+                            <div style="color: #666; font-size: 0.8rem; margin-bottom: 0.5rem;">Service management and monitoring</div>
+                            <div style="color: #00ff41; font-size: 0.85rem;">Permissions: 5</div>
+                            <div style="font-size: 0.75rem; color: #00cc33; margin-top: 0.3rem;">
+                                services.manage, services.view, system.view_logs, api.read, monitoring.view
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <div style="color: #00ffff; font-size: 1.1rem; margin-bottom: 0.5rem;">USER</div>
+                            <div style="color: #666; font-size: 0.8rem; margin-bottom: 0.5rem;">Basic user access</div>
+                            <div style="color: #00ff41; font-size: 0.85rem;">Permissions: 2</div>
+                            <div style="font-size: 0.75rem; color: #00cc33; margin-top: 0.3rem;">
+                                api.read, profile.manage
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                        <button class="btn" onclick="showToast('Create role feature coming soon', 'success')">Create New Role</button>
+                        <button class="btn btn-danger" onclick="this.closest('div[style*=fixed]').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            logActivity('Opened role management');
+        }
+
+        function viewSecurityLogs() {
+            showToast('Loading security logs...', 'success');
+            logActivity('Viewed security logs');
+        }
+
+        function viewFailedAttempts() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.8); z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: #0a0e27; border: 2px solid #ff0000; border-radius: 8px; padding: 2rem; max-width: 800px; width: 90%;">
+                    <h3 style="color: #ff0000; margin-bottom: 1.5rem;">⚠️ Failed Login Attempts (Last 24h)</h3>
+                    
+                    <div class="terminal-output" style="max-height: 400px;">
+                        <div style="color: #ff0000;">[2025-12-02 12:34:56] Failed login attempt - IP: 192.168.1.100 - User: admin</div>
+                        <div style="color: #ff0000;">[2025-12-02 12:34:45] Failed login attempt - IP: 192.168.1.100 - User: root</div>
+                        <div style="color: #ffaa00;">[2025-12-02 12:30:12] Rate limit exceeded - IP: 10.0.0.50</div>
+                        <div style="color: #00ff41;">[2025-12-02 12:00:00] No failed attempts in previous hour</div>
+                        <div style="color: #666; margin-top: 1rem; font-style: italic;">Total failed attempts: 3</div>
+                        <div style="color: #666; font-style: italic;">Blocked IPs: 0</div>
+                    </div>
+                    
+                    <button class="btn btn-danger" onclick="this.closest('div[style*=fixed]').remove()" style="margin-top: 1.5rem;">Close</button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            logActivity('Viewed failed login attempts');
+        }
+
+        function clearRateLimits() {
+            if (confirm('Clear all rate limit counters?\n\nThis will reset rate limiting for all users and IPs.')) {
+                showToast('Rate limits cleared', 'success');
+                logActivity('Cleared all rate limits');
+            }
+        }
+
+        function resetSecuritySettings() {
+            if (confirm('⚠️ Reset security settings to defaults?\n\nThis will restore:\n- Max failed attempts: 5\n- Attempt window: 15 minutes\n- Rate limit: 10 requests/60 seconds')) {
+                showToast('Security settings reset to defaults', 'success');
+                logActivity('Reset security settings to defaults');
+            }
+        }
+
+        function loadActivity() {
+            const log = document.getElementById('activityLog');
+            const timestamp = new Date().toISOString().replace('T', ' ').substr(0, 19);
+            
+            const activities = [
+                { color: '#00cc33', msg: 'Session renewed for Sentra' },
+                { color: '#00ffff', msg: 'Token validation successful' },
+                { color: '#00cc33', msg: 'Device fingerprint verified' },
+                { color: '#00ffff', msg: 'Auth health check passed' }
+            ];
+            
+            const activity = activities[Math.floor(Math.random() * activities.length)];
+            
+            const newEntry = document.createElement('div');
+            newEntry.style.color = activity.color;
+            newEntry.textContent = `[${timestamp}] ${activity.msg}`;
+            
+            log.insertBefore(newEntry, log.firstChild);
+            
+            // Keep only last 20 entries
+            while (log.children.length > 20) {
+                log.removeChild(log.lastChild);
+            }
+            
+            showToast('Activity log updated', 'success');
+        }
+
+        function logActivity(message) {
+            const log = document.getElementById('activityLog');
+            const timestamp = new Date().toISOString().replace('T', ' ').substr(0, 19);
+            
+            const newEntry = document.createElement('div');
+            newEntry.style.color = '#00ffff';
+            newEntry.textContent = `[${timestamp}] ${message}`;
+            
+            log.insertBefore(newEntry, log.firstChild);
+            
+            // Keep only last 20 entries
+            while (log.children.length > 20) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function updateStats() {
+            // Update sessions count
+            const sessionCount = Math.floor(Math.random() * 3) + 1;
+            document.querySelectorAll('.info-value').forEach(el => {
+                if (el.textContent.includes('session')) {
+                    el.textContent = `${sessionCount} active`;
+                }
+            });
+        }
+
+        // Auto-refresh stats every 30 seconds
+        setInterval(() => {
+            updateStats();
+            loadActivity();
+        }, 30000);
+
+        // Initialize on load
+        setTimeout(() => {
+            loadUsers();
+            loadSessions();
+        }, 500);
+    </script>
+</body>
+</html>

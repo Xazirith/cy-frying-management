@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login • Sentra Systems</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e8eaf6;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: rgba(20, 25, 45, 0.95);
+            border-radius: 16px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #6c7ff2;
+            margin-bottom: 8px;
+        }
+
+        .logo p {
+            font-size: 14px;
+            color: #9ca3af;
+            font-weight: 400;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #b8c1ec;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 15px;
+            background: rgba(30, 35, 55, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e8eaf6;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #6c7ff2;
+            background: rgba(30, 35, 55, 1);
+            box-shadow: 0 0 0 3px rgba(108, 127, 242, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #6b7280;
+        }
+
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .forgot-password {
+            color: #6c7ff2;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .forgot-password:hover {
+            color: #8c9ff5;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #6c7ff2 0%, #8c9ff5 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(108, 127, 242, 0.3);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 24px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .divider span {
+            background: rgba(20, 25, 45, 0.95);
+            padding: 0 16px;
+            position: relative;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .register-link {
+            text-align: center;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .register-link a {
+            color: #6c7ff2;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .alert.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .alert.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer-links {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-links a {
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 13px;
+            margin: 0 12px;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #6c7ff2;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 32px 24px;
+            }
+
+            .logo h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>Sentra Systems</h1>
+            <p>Development Studio Portal</p>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email or Username</label>
+                <input type="text" id="email" name="email" placeholder="admin or you@example.com" required autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+
+            <div class="remember-forgot">
+                <label class="remember-me">
+                    <input type="checkbox" id="rememberMe" name="rememberMe">
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="forgot-password" id="forgotPasswordLink">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn-login" id="loginBtn">
+                Sign In
+            </button>
+        </form>
+
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <div class="register-link">
+            Don't have an account? <a href="#" id="registerLink">Create one</a>
+        </div>
+
+        <div class="footer-links">
+            <a href="/status">System Status</a>
+            <a href="/dev">Developer</a>
+            <a href="https://sentrasys.dev" target="_blank">About</a>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = '';
+        
+        // State management
+        let isSubmitting = false;
+
+        // DOM elements
+        const form = document.getElementById('loginForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const rememberMeCheckbox = document.getElementById('rememberMe');
+        const loginBtn = document.getElementById('loginBtn');
+        const alertBox = document.getElementById('alert');
+        const registerLink = document.getElementById('registerLink');
+        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+
+        // Check if already logged in
+        function checkExistingSession() {
+            const authData = localStorage.getItem('sentra_auth');
+            if (authData) {
+                try {
+                    const auth = JSON.parse(authData);
+                    if (auth.access_token && auth.expires_at > Date.now() / 1000) {
+                        // Valid session exists, redirect based on permissions
+                        routeByPermissions(auth);
+                        return true;
+                    }
+                } catch (e) {
+                    localStorage.removeItem('sentra_auth');
+                }
+            }
+            return false;
+        }
+
+        // Auto-routing based on permissions
+        function routeByPermissions(authPacket) {
+            const { global_roles, site_roles, site_permissions } = authPacket;
+
+            // Check for admin access
+            if (global_roles.includes('admin') || global_roles.includes('superadmin')) {
+                window.location.href = '/dev';
+                return;
+            }
+
+            // Check for services management
+            if (site_permissions['sentra-core']?.includes('manage_services') || 
+                global_roles.includes('operator')) {
+                window.location.href = '/static/services.html';
+                return;
+            }
+
+            // Check for developer access
+            if (global_roles.includes('developer') || site_roles['sentra-core']?.includes('developer')) {
+                window.location.href = '/dev';
+                return;
+            }
+
+            // Default to status page for regular users
+            window.location.href = '/status';
+        }
+
+        // Show alert message
+        function showAlert(message, type = 'error') {
+            alertBox.textContent = message;
+            alertBox.className = `alert ${type}`;
+            alertBox.style.display = 'block';
+
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    alertBox.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Hide alert
+        function hideAlert() {
+            alertBox.style.display = 'none';
+        }
+
+        // Get device fingerprint (basic)
+        function getDeviceFingerprint() {
+            const ua = navigator.userAgent;
+            const screen = `${window.screen.width}x${window.screen.height}`;
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const fingerprint = `${ua}|${screen}|${timezone}`;
+            
+            // Simple hash
+            let hash = 0;
+            for (let i = 0; i < fingerprint.length; i++) {
+                const char = fingerprint.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            if (isSubmitting) return;
+            
+            hideAlert();
+            isSubmitting = true;
+            
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            
+            if (!email || !password) {
+                showAlert('Please enter both email and password');
+                isSubmitting = false;
+                return;
+            }
+
+            // Update button state
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading-spinner"></span>Signing in...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password,
+                        device_name: `${navigator.platform} Browser`,
+                        device_fingerprint: getDeviceFingerprint()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.ok && data.auth_packet) {
+                    const authPacket = data.auth_packet;
+                    
+                    // Store authentication data
+                    if (rememberMeCheckbox.checked) {
+                        localStorage.setItem('sentra_auth', JSON.stringify(authPacket));
+                        localStorage.setItem('sentra_remember', 'true');
+                    } else {
+                        sessionStorage.setItem('sentra_auth', JSON.stringify(authPacket));
+                    }
+
+                    showAlert('Login successful! Redirecting...', 'success');
+                    
+                    // Route based on permissions
+                    setTimeout(() => {
+                        routeByPermissions(authPacket);
+                    }, 500);
+                } else {
+                    // Handle specific error codes
+                    let errorMessage = 'Invalid email or password';
+                    
+                    if (data.error === 'rate_limit_exceeded') {
+                        errorMessage = 'Too many attempts. Please try again later.';
+                    } else if (data.error === 'too_many_attempts') {
+                        errorMessage = 'Account temporarily locked due to too many failed attempts.';
+                    } else if (data.error === 'account_locked') {
+                        errorMessage = 'Your account has been locked. Please contact support.';
+                    } else if (data.error) {
+                        errorMessage = data.error.replace(/_/g, ' ');
+                    }
+                    
+                    showAlert(errorMessage);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert('Connection error. Please check your network and try again.');
+            } finally {
+                isSubmitting = false;
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Sign In';
+            }
+        }
+
+        // Handle register link
+        registerLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = '/register';
+        });
+
+        // Handle forgot password link
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const email = emailInput.value.trim();
+            
+            if (email) {
+                showAlert(`Password reset instructions will be sent to ${email} if the account exists.`, 'info');
+                // TODO: Implement password reset API call
+                // fetch(`${API_BASE}/api/auth/password-reset/request`, { ... });
+            } else {
+                showAlert('Please enter your email address first', 'info');
+                emailInput.focus();
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', handleLogin);
+
+        // Auto-focus email field
+        emailInput.focus();
+
+        // Check for existing session on load
+        if (checkExistingSession()) {
+            showAlert('Redirecting to dashboard...', 'info');
+        }
+
+        // Check for logout message
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('logout') === 'success') {
+            showAlert('You have been successfully logged out.', 'success');
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    </script>
+</body>
+</html>

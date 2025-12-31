@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Services Controller • Sentra Systems</title>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <style>
+    body{font-family:Inter,system-ui,Arial,Helvetica,sans-serif;margin:20px}
+    h1{font-size:20px}
+    .list{margin-top:12px}
+    .mod{display:flex;align-items:center;justify-content:space-between;padding:8px;border:1px solid #eee;margin-bottom:6px;border-radius:6px}
+    button{padding:6px 10px;border-radius:6px;border:1px solid #888;background:#fff}
+    #refresh{margin-left:8px}
+  </style>
+</head>
+<body>
+  <h1>Services Controller</h1>
+  <p>Sentra Systems • Manage loaded modules and services</p>
+  <div>
+    <button id="reload-all">Reload all modules</button>
+    <button id="refresh">Refresh</button>
+  </div>
+  <div class="list" id="modules"></div>
+
+  <script>
+    async function api(path, opts){
+      const res = await fetch(path, Object.assign({credentials:'same-origin'}, opts || {}));
+      if(!res.ok){
+        const txt = await res.text();
+        throw new Error(res.status+": "+txt);
+      }
+      return res.json();
+    }
+
+    async function refresh(){
+      try{
+        const data = await api('/api/services');
+        const el = document.getElementById('modules');
+        el.innerHTML = '';
+        (data.modules || []).forEach(m=>{
+          const d = document.createElement('div'); d.className='mod';
+          const name = document.createElement('div'); name.textContent = m;
+          const actions = document.createElement('div');
+          const btn = document.createElement('button'); btn.textContent='Reload';
+          btn.onclick = async ()=>{
+            try{ btn.textContent='...'; await api('/api/services/reload', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({name:m})}); refresh(); }
+            catch(e){ alert('reload failed: '+e); btn.textContent='Reload'; }
+          };
+          actions.appendChild(btn);
+          d.appendChild(name); d.appendChild(actions); el.appendChild(d);
+        });
+      }catch(e){ alert('Failed to load modules: '+e); }
+    }
+
+    document.getElementById('refresh').addEventListener('click', refresh);
+    document.getElementById('reload-all').addEventListener('click', async ()=>{
+      try{ document.getElementById('reload-all').textContent='...'; await api('/api/services/reload_all', {method:'POST'}); refresh(); document.getElementById('reload-all').textContent='Reload all modules'; }
+      catch(e){ alert('reload all failed: '+e); document.getElementById('reload-all').textContent='Reload all modules'; }
+    });
+
+    // Auto refresh on load
+    refresh();
+  </script>
+</body>
+</html>

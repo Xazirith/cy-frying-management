@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentra Core - Admin Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #1a1f3a;
+            --bg-card: rgba(26, 31, 58, 0.6);
+            --border-color: rgba(0, 255, 65, 0.2);
+            --text-primary: #00ff41;
+            --text-secondary: #9fa8da;
+            --text-muted: #666;
+            --accent-purple: #a855f7;
+            --accent-cyan: #22d3ee;
+        }
+
+        body {
+            font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(34,211,238,0.06));
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1rem;
+            position: fixed;
+            height: 100vh;
+            width: 260px;
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .logo-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            letter-spacing: 0.1em;
+        }
+
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-title {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.15em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            margin: 0.25rem 0;
+            color: #00cc33;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.2s;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(0, 255, 65, 0.15);
+            color: var(--text-primary);
+            border-left: 3px solid var(--text-primary);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 260px;
+            padding: 2rem;
+        }
+
+        .header {
+            background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(34,211,238,0.08));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            font-size: 1.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid var(--text-primary);
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .kpi-card:hover {
+            border-color: rgba(0, 255, 65, 0.4);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+        }
+
+        .kpi-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-change {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .kpi-change.positive {
+            color: #4caf50;
+        }
+
+        /* Section Cards */
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--text-primary);
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* Deployment History Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.75rem;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+        }
+
+        tr:hover {
+            background: rgba(0, 255, 65, 0.05);
+        }
+
+        .commit-hash {
+            font-family: 'Courier New', monospace;
+            color: var(--accent-purple);
+        }
+
+        .success-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            border: 3px solid rgba(0, 255, 65, 0.1);
+            border-top: 3px solid var(--text-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .module-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .module-item {
+            padding: 0.5rem 0.75rem;
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="logo">SENTRA</div>
+            <div class="logo-subtitle">ADMIN DASHBOARD</div>
+            
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-title">Core</div>
+                    <div class="nav-item active" onclick="showSection('overview')">
+                        <span>📊</span>
+                        <span>Overview</span>
+                    </div>
+                    <div class="nav-item" onclick="showSection('deployments')">
+                        <span>🚀</span>
+                        <span>Deployments</span>
+                    </div>
+                    <div class="nav-item" onclick="showSection('modules')">
+                        <span>📦</span>
+                        <span>Modules</span>
+                    </div>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-title">System</div>
+                    <div class="nav-item" onclick="showSection('health')">
+                        <span>💚</span>
+                        <span>Health</span>
+                    </div>
+                    <div class="nav-item" onclick="window.location.href='/static/status.html'">
+                        <span>📈</span>
+                        <span>Status</span>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <div class="header">
+                <div>
+                    <div class="header-title">Sentra Core Dashboard</div>
+                    <div class="header-subtitle" id="version-info">Loading...</div>
+                </div>
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Online</span>
+                </div>
+            </div>
+
+            <!-- Overview Section -->
+            <div id="overview-section" class="content-section active">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Active Modules</div>
+                        <div class="kpi-value" id="module-count">--</div>
+                        <div class="kpi-change">Loading...</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Deployments</div>
+                        <div class="kpi-value" id="deployment-count">--</div>
+                        <div class="kpi-change" id="deployment-change">Loading...</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Uptime</div>
+                        <div class="kpi-value" id="uptime-value">--</div>
+                        <div class="kpi-change" id="uptime-change">Calculating...</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">System Status</div>
+                        <div class="kpi-value" style="font-size: 1.5rem;" id="system-health">✓ Healthy</div>
+                        <div class="kpi-change positive" id="health-status">All systems operational</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Recent Deployments</h2>
+                        <button class="btn" onclick="loadDeployments()">Refresh</button>
+                    </div>
+                    <div class="card">
+                        <div id="recent-deployments">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <div>Loading deployment history...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Loaded Modules</h2>
+                        <button class="btn" onclick="loadModules()">Reload</button>
+                    </div>
+                    <div class="card">
+                        <div id="modules-list" class="module-list">
+                            <div class="loading">Loading modules...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deployments Section -->
+            <div id="deployments-section" class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">Deployment History</h2>
+                    <button class="btn" onclick="loadDeployments()">Refresh</button>
+                </div>
+                <div class="card">
+                    <div id="all-deployments">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div>Loading deployment history...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modules Section -->
+            <div id="modules-section" class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">Module Management</h2>
+                    <button class="btn" onclick="reloadAllModules()">Reload All</button>
+                </div>
+                <div class="card">
+                    <div id="module-details">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Health Section -->
+            <div id="health-section" class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">System Health</h2>
+                    <button class="btn" onclick="loadHealth()">Check Now</button>
+                </div>
+                <div class="card">
+                    <div id="health-info">Loading system health...</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE = window.location.origin;
+        let API_KEY = localStorage.getItem('sentra_api_key') || '';
+        
+        // Check for auth in URL or prompt
+        if (!API_KEY) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const keyParam = urlParams.get('key');
+            if (keyParam) {
+                API_KEY = keyParam;
+                localStorage.setItem('sentra_api_key', API_KEY);
+            }
+        }
+
+        function showSection(name) {
+            document.querySelectorAll('.content-section').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            document.getElementById(name + '-section')?.classList.add('active');
+            event.target.closest('.nav-item')?.classList.add('active');
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+            
+            if (API_KEY) {
+                headers['X-API-Key'] = API_KEY;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    ...options,
+                    headers
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        console.error('Authentication failed. Please check API key.');
+                    }
+                    throw new Error(`API call failed: ${response.status}`);
+                }
+                
+                return response.json();
+            } catch (err) {
+                console.error('API call error:', err);
+                throw err;
+            }
+        }
+
+        let coreUptimeBase = null;
+        let coreUptimeAnchor = null;
+        let coreUptimeTimer = null;
+
+        function setCoreUptime(seconds) {
+            if (seconds === undefined || seconds === null || Number.isNaN(seconds)) return;
+            coreUptimeBase = Math.max(0, Math.floor(seconds));
+            coreUptimeAnchor = Date.now();
+            updateUptimeDisplay();
+            if (!coreUptimeTimer) {
+                coreUptimeTimer = setInterval(updateUptimeDisplay, 1000);
+            }
+        }
+
+        function updateUptimeDisplay() {
+            if (coreUptimeBase === null || coreUptimeAnchor === null) return;
+            const elapsed = (Date.now() - coreUptimeAnchor) / 1000;
+            const total = Math.max(0, coreUptimeBase + elapsed);
+            
+            const uptimeStr = formatUptime(total);
+            document.getElementById('uptime-value').textContent = uptimeStr;
+            document.getElementById('uptime-change').textContent = `${Math.floor(total)} seconds`;
+        }
+
+        async function loadCoreInfo() {
+            try {
+                const data = await apiCall('/api/core/dashboard');
+                if (data.ok) {
+                    const core = data.core || {};
+                    const metrics = data.metrics || {};
+                    
+                    const moduleCount = core.module_count || 0;
+                    document.getElementById('module-count').textContent = moduleCount;
+                    
+                    // Update version info with real data
+                    const versionInfo = core.version || '9.0';
+                    const gitInfo = core.git_commit && core.git_commit !== 'unknown' ? ` @ ${core.git_commit}` : '';
+                    document.getElementById('version-info').textContent = `v${versionInfo}${gitInfo} • ${moduleCount} modules`;
+                    
+                    // Update uptime with ticker
+                    const uptimeSeconds = core.uptime_seconds || 0;
+                    setCoreUptime(uptimeSeconds);
+                    
+                    // Update deployment count from last load
+                    const deployCount = document.getElementById('deployment-count').textContent;
+                    if (deployCount === '--') {
+                        document.getElementById('deployment-count').textContent = '0';
+                    }
+                    
+                    // Update status indicator
+                    document.getElementById('status-text').textContent = 'Online';
+                    
+                    // Update module list indicator
+                    const moduleEl = document.querySelector('#overview-section .kpi-card:nth-child(1) .kpi-change');
+                    if (moduleEl && core.modules && core.modules.length > 0) {
+                        // Show simplified module names
+                        const simpleNames = core.modules.map(m => m.replace('app.modules.', ''));
+                        moduleEl.textContent = simpleNames.slice(0, 3).join(', ') + (simpleNames.length > 3 ? '...' : '');
+                    }
+
+                    // Update System Status Card
+                    const healthPct = metrics.health_percent || 100;
+                    const cpu = metrics.cpu_percent || 0;
+                    const mem = metrics.memory_percent || 0;
+                    
+                    document.getElementById('system-health').textContent = '✓ Healthy';
+                    document.getElementById('health-status').textContent = `CPU: ${cpu}% • MEM: ${mem}%`;
+                }
+            } catch (err) {
+                console.error('Failed to load core info:', err);
+                document.getElementById('module-count').textContent = '??';
+                document.getElementById('version-info').textContent = 'Unable to connect';
+                document.getElementById('status-text').textContent = 'Offline';
+                document.getElementById('uptime-value').textContent = '--';
+                document.getElementById('uptime-change').textContent = 'Connection lost';
+                
+                // Update status badge color
+                const badge = document.querySelector('.status-badge');
+                if (badge) badge.style.borderColor = '#f44336';
+            }
+        }
+        
+        function formatUptime(seconds) {
+            if (seconds < 60) return `${seconds}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            return `${days}d ${hours}h`;
+        }
+
+        async function loadDeployments() {
+            const container = document.getElementById('recent-deployments');
+            const allContainer = document.getElementById('all-deployments');
+            
+            try {
+                const data = await apiCall('/api/public/deployments?limit=10');
+                
+                if (data.ok) {
+                    const count = data.count || 0;
+                    document.getElementById('deployment-count').textContent = count;
+                    
+                    if (!data.deployments || data.deployments.length === 0) {
+                        const emptyHtml = `
+                            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📦</div>
+                                <div>No deployments recorded yet</div>
+                                <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+                                    Deploy using <code style="background: rgba(0,255,65,0.1); padding: 0.2rem 0.5rem; border-radius: 3px;">push-core</code> to see history here
+                                </div>
+                            </div>
+                        `;
+                        if (container) container.innerHTML = emptyHtml;
+                        if (allContainer) allContainer.innerHTML = emptyHtml;
+                        document.getElementById('deployment-change').textContent = 'No deployments yet';
+                        return;
+                    }
+                    
+                    const html = `
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Timestamp</th>
+                                        <th>Commit</th>
+                                        <th>Version</th>
+                                        <th>Files</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.deployments.map(d => `
+                                        <tr>
+                                            <td><span class="commit-hash">${d.deployment_id.substring(0, 8)}</span></td>
+                                            <td>${new Date(d.timestamp * 1000).toLocaleString()}</td>
+                                            <td><span class="commit-hash">${d.git_commit}</span></td>
+                                            <td>${d.version}</td>
+                                            <td>${d.files_changed_count} files</td>
+                                            <td>${d.success ? '<span class="success-badge">✓ Success</span>' : '✗ Failed'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    
+                    if (container) container.innerHTML = html;
+                    if (allContainer) allContainer.innerHTML = html;
+                    
+                    // Calculate time since last deployment
+                    const latest = data.deployments[0];
+                    const lastDeployTime = new Date(latest.timestamp * 1000);
+                    const now = new Date();
+                    const diffMs = now - lastDeployTime;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+                    
+                    let timeStr = '';
+                    if (diffDays > 0) timeStr = `${diffDays}d ago`;
+                    else if (diffHours > 0) timeStr = `${diffHours}h ago`;
+                    else if (diffMins > 0) timeStr = `${diffMins}m ago`;
+                    else timeStr = 'Just now';
+                    
+                    document.getElementById('deployment-change').textContent = `Last: ${timeStr}`;
+                }
+            } catch (err) {
+                console.error('Failed to load deployments:', err);
+                const errorHtml = '<div style="color: #f44336; text-align: center; padding: 1rem;">Failed to load deployment history. Check API connection.</div>';
+                if (container) container.innerHTML = errorHtml;
+                if (allContainer) allContainer.innerHTML = errorHtml;
+            }
+        }
+
+        async function loadModules() {
+            const container = document.getElementById('modules-list');
+            
+            try {
+                const data = await apiCall('/api/core/status');
+                
+                if (data.ok && data.modules) {
+                    container.innerHTML = data.modules.map(m => 
+                        `<div class="module-item">${m}</div>`
+                    ).join('');
+                }
+            } catch (err) {
+                console.error('Failed to load modules:', err);
+                container.innerHTML = '<div style="color: #f44336;">Failed to load modules</div>';
+            }
+        }
+
+        async function reloadAllModules() {
+            if (!API_KEY) {
+                alert('API key required for this action. Please authenticate first.');
+                return;
+            }
+            try {
+                await apiCall('/api/core/reload', { method: 'POST' });
+                alert('Modules reloaded successfully');
+                loadModules();
+            } catch (err) {
+                alert('Failed to reload modules: ' + err.message);
+            }
+        }
+
+        async function loadHealth() {
+            const container = document.getElementById('health-info');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>Checking system health...</div>';
+            
+            try {
+                const data = await apiCall('/api/core/dashboard');
+                const core = data.core || {};
+                const metrics = data.metrics || {};
+                
+                const uptimeSeconds = core.uptime_seconds || 0;
+                const uptimeStr = formatUptime(uptimeSeconds);
+                
+                container.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                        <div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.75rem; text-transform: uppercase;">System Status</div>
+                            <div style="font-size: 1.5rem; color: #4caf50;">✓ All Systems Operational</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.75rem; text-transform: uppercase;">Uptime</div>
+                            <div style="font-size: 1.25rem;">${uptimeStr}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">${uptimeSeconds} seconds</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.75rem; text-transform: uppercase;">Loaded Modules</div>
+                            <div style="font-size: 1.25rem;">${core.module_count || 0} modules active</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.75rem; text-transform: uppercase;">Version</div>
+                            <div style="font-size: 1.25rem;">v${core.version || '9.0'}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">${core.git_commit !== 'unknown' ? 'commit: ' + core.git_commit : ''}</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.75rem; text-transform: uppercase;">Resources</div>
+                            <div style="font-size: 1.25rem;">CPU: ${metrics.cpu_percent}%</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">MEM: ${metrics.memory_percent}% (${metrics.process_mem_mb} MB)</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.75rem; text-transform: uppercase;">API Connection</div>
+                            <div style="font-size: 1.25rem; color: #4caf50;">✓ Connected</div>
+                        </div>
+                    </div>
+                    
+                    ${core.modules && core.modules.length > 0 ? `
+                    <div style="margin-top: 2rem;">
+                        <div style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.75rem; text-transform: uppercase;">Active Modules</div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem;">
+                            ${core.modules.map(m => `
+                                <div style="padding: 0.5rem; background: rgba(0, 255, 65, 0.05); border: 1px solid rgba(0, 255, 65, 0.15); border-radius: 6px; font-size: 0.85rem;">
+                                    ${m.replace('app.modules.', '')}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+                
+                // Update system health KPI
+                document.getElementById('system-health').textContent = '✓ Healthy';
+                document.getElementById('health-status').textContent = `CPU: ${metrics.cpu_percent}% • MEM: ${metrics.memory_percent}%`;
+                document.getElementById('health-status').className = 'kpi-change positive';
+            } catch (err) {
+                console.error('Health check failed:', err);
+                container.innerHTML = `
+                    <div style="color: #f44336; text-align: center; padding: 2rem;">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚠️</div>
+                        <div>Unable to check system health</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.5rem;">API connection failed</div>
+                    </div>
+                `;
+                
+                // Update system health KPI
+                document.getElementById('system-health').textContent = '⚠ Degraded';
+                document.getElementById('health-status').textContent = 'Connection issues';
+                document.getElementById('health-status').className = 'kpi-change';
+                document.getElementById('health-status').style.color = '#f44336';
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCoreInfo();
+            loadDeployments();
+            loadModules();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                loadCoreInfo();
+                loadDeployments();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

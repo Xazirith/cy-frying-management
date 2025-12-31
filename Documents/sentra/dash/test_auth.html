@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Test</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+</head>
+<body>
+    <h1>Auth Debug Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        // Check localStorage
+        const localAuth = localStorage.getItem('sentra_auth');
+        output.innerHTML += `<h2>localStorage.sentra_auth:</h2><pre>${localAuth || 'NULL'}</pre>`;
+        
+        // Check sessionStorage
+        const sessionAuth = sessionStorage.getItem('sentra_auth');
+        output.innerHTML += `<h2>sessionStorage.sentra_auth:</h2><pre>${sessionAuth || 'NULL'}</pre>`;
+        
+        if (localAuth || sessionAuth) {
+            try {
+                const auth = JSON.parse(localAuth || sessionAuth);
+                output.innerHTML += `<h2>Parsed Auth Object:</h2><pre>${JSON.stringify(auth, null, 2)}</pre>`;
+                
+                // Test API call
+                output.innerHTML += `<h2>Testing /api/auth/user...</h2>`;
+                
+                fetch('/api/auth/user', {
+                    headers: {
+                        'Authorization': `Bearer ${auth.access_token}`
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    output.innerHTML += `<h3>Response:</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                })
+                .catch(err => {
+                    output.innerHTML += `<h3>Error:</h3><pre>${err}</pre>`;
+                });
+                
+            } catch (e) {
+                output.innerHTML += `<h2>Parse Error:</h2><pre>${e}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>

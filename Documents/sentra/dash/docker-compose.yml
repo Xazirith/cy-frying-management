@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  sentra-dash:
+    build: .
+    container_name: sentra-dash
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - sentra-network
+    depends_on:
+      - sentra-core
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  sentra-core:
+    image: sentra-core-sentra-core:latest
+    container_name: sentra-core
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - sentra-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/core/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  sentra-network:
+    driver: bridge
