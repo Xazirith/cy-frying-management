@@ -1,0 +1,15 @@
+[Unit]
+Description=Sentra Auto-Update Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sentra-core
+ExecStart=/bin/bash /opt/sentra-core/auto-update.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

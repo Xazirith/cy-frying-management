@@ -1,0 +1,5 @@
+sentra_sync() {
+  local SRC="/home/xazirith/Documents/sentra/core/"
+  local DEST="root@72.60.168.211:/opt/sentra-core/"
+  rsync -avhz --progress --update --exclude='.git' --exclude='__pycache__' --exclude='.venv' "$SRC" "$DEST"
+}
