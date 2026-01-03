@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signage Manager - Sentra</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #2c3e50;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #ecf0f1;
+        }
+
+        .tab.active {
+            background: #3498db;
+            color: #fff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+        }
+
+        .status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .playlist-items {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .playlist-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .playlist-item .drag-handle {
+            cursor: grab;
+            font-size: 1.2rem;
+        }
+
+        .playlist-item .content-preview {
+            flex: 1;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🖥️ Signage Manager</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="displays">Displays</button>
+            <button class="tab" data-tab="playlists">Playlists</button>
+            <button class="tab" data-tab="schedules">Schedules</button>
+            <button class="tab" data-tab="analytics">Analytics</button>
+        </div>
+
+        <!-- DISPLAYS TAB -->
+        <div id="displays-tab" class="tab-content active">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Displays</h2>
+                    <button class="btn" onclick="openDisplayModal()">+ Add Display</button>
+                </div>
+                <table class="table" id="displays-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Playlist</th>
+                            <th>Last Seen</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="displays-list">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PLAYLISTS TAB -->
+        <div id="playlists-tab" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Playlists</h2>
+                    <button class="btn" onclick="openPlaylistModal()">+ Create Playlist</button>
+                </div>
+                <table class="table" id="playlists-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="playlists-list">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 40px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SCHEDULES TAB -->
+        <div id="schedules-tab" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Schedules</h2>
+                    <button class="btn" onclick="openScheduleModal()">+ Add Schedule</button>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Display</th>
+                            <th>Playlist</th>
+                            <th>Time Range</th>
+                            <th>Days</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedules-list">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ANALYTICS TAB -->
+        <div id="analytics-tab" class="tab-content">
+            <div class="analytics-grid" id="analytics-stats">
+                <div class="stat-card">
+                    <h3>Total Displays</h3>
+                    <div class="value">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <h3>Online Displays</h3>
+                    <div class="value">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <h3>Total Playlists</h3>
+                    <div class="value">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                    <h3>Content Items</h3>
+                    <div class="value">0</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 30px;">
+                <h2>Recent Activity</h2>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Display</th>
+                            <th>Event</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="analytics-list">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 40px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- DISPLAY MODAL -->
+    <div id="display-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="display-modal-title">Add Display</h2>
+            <form id="display-form" onsubmit="saveDisplay(event)">
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Device ID *</label>
+                    <input type="text" name="device_id" required>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" name="location">
+                </div>
+                <div class="form-group">
+                    <label>Orientation</label>
+                    <select name="orientation">
+                        <option value="landscape">Landscape</option>
+                        <option value="portrait">Portrait</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Resolution</label>
+                    <input type="text" name="resolution" value="1920x1080">
+                </div>
+                <div class="form-group">
+                    <label>Default Playlist</label>
+                    <select name="playlist_id" id="display-playlist-select">
+                        <option value="">None</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn" style="background: #95a5a6;" onclick="closeModal('display-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PLAYLIST MODAL -->
+    <div id="playlist-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="playlist-modal-title">Create Playlist</h2>
+            <form id="playlist-form" onsubmit="savePlaylist(event)">
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="is_default"> Set as default playlist
+                    </label>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn" style="background: #95a5a6;" onclick="closeModal('playlist-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8088'; // Tenants service
+        const TENANT_ID = new URLSearchParams(window.location.search).get('tenant_id') || 'default';
+
+        let currentTab = 'displays';
+        let displays = [];
+        let playlists = [];
+
+        // Tab handling
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            currentTab = tabName;
+            loadTabData(tabName);
+        }
+
+        function loadTabData(tabName) {
+            switch(tabName) {
+                case 'displays':
+                    loadDisplays();
+                    break;
+                case 'playlists':
+                    loadPlaylists();
+                    break;
+                case 'schedules':
+                    loadSchedules();
+                    break;
+                case 'analytics':
+                    loadAnalytics();
+                    break;
+            }
+        }
+
+        // Displays
+        async function loadDisplays() {
+            try {
+                const response = await fetch(`${API_URL}/api/tenants/${TENANT_ID}/signage/displays`);
+                displays = await response.json();
+                
+                const tbody = document.getElementById('displays-list');
+                if (displays.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px;">No displays yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = displays.map(display => `
+                    <tr>
+                        <td>${display.name}</td>
+                        <td>${display.location || '-'}</td>
+                        <td><span class="status ${display.status}">${display.status}</span></td>
+                        <td>${display.playlist_id ? getPlaylistName(display.playlist_id) : '-'}</td>
+                        <td>${display.last_seen ? new Date(display.last_seen).toLocaleString() : 'Never'}</td>
+                        <td>
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.85rem;" onclick="viewDisplay(${display.id})">View</button>
+                            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="deleteDisplay(${display.id})">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load displays:', error);
+            }
+        }
+
+        function getPlaylistName(playlistId) {
+            const playlist = playlists.find(p => p.id === playlistId);
+            return playlist ? playlist.name : `Playlist ${playlistId}`;
+        }
+
+        // Playlists
+        async function loadPlaylists() {
+            try {
+                const response = await fetch(`${API_URL}/api/tenants/${TENANT_ID}/signage/playlists`);
+                playlists = await response.json();
+                
+                const tbody = document.getElementById('playlists-list');
+                if (playlists.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px;">No playlists yet</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = playlists.map(playlist => `
+                    <tr>
+                        <td>${playlist.name}${playlist.is_default ? ' <span style="color: #f39c12;">★</span>' : ''}</td>
+                        <td>-</td>
+                        <td>${playlist.active ? 'Active' : 'Inactive'}</td>
+                        <td>
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.85rem;" onclick="editPlaylist(${playlist.id})">Edit</button>
+                            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="deletePlaylist(${playlist.id})">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                // Update playlist selects
+                updatePlaylistSelects();
+            } catch (error) {
+                console.error('Failed to load playlists:', error);
+            }
+        }
+
+        function updatePlaylistSelects() {
+            const select = document.getElementById('display-playlist-select');
+            select.innerHTML = '<option value="">None</option>' + 
+                playlists.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+
+        // Modal handling
+        function openDisplayModal() {
+            loadPlaylists().then(() => {
+                document.getElementById('display-modal').classList.add('active');
+            });
+        }
+
+        function openPlaylistModal() {
+            document.getElementById('playlist-modal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        async function saveDisplay(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = {
+                name: formData.get('name'),
+                device_id: formData.get('device_id'),
+                location: formData.get('location'),
+                orientation: formData.get('orientation'),
+                resolution: formData.get('resolution'),
+                playlist_id: formData.get('playlist_id') || null
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/tenants/${TENANT_ID}/signage/displays`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('display-modal');
+                    event.target.reset();
+                    loadDisplays();
+                } else {
+                    alert('Failed to create display');
+                }
+            } catch (error) {
+                console.error('Error creating display:', error);
+                alert('Error creating display');
+            }
+        }
+
+        async function savePlaylist(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                is_default: formData.get('is_default') === 'on'
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/api/tenants/${TENANT_ID}/signage/playlists`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    closeModal('playlist-modal');
+                    event.target.reset();
+                    loadPlaylists();
+                } else {
+                    alert('Failed to create playlist');
+                }
+            } catch (error) {
+                console.error('Error creating playlist:', error);
+                alert('Error creating playlist');
+            }
+        }
+
+        async function deleteDisplay(id) {
+            if (!confirm('Delete this display?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/tenants/${TENANT_ID}/signage/displays/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadDisplays();
+                }
+            } catch (error) {
+                console.error('Error deleting display:', error);
+            }
+        }
+
+        async function deletePlaylist(id) {
+            if (!confirm('Delete this playlist?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/tenants/${TENANT_ID}/signage/playlists/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    loadPlaylists();
+                }
+            } catch (error) {
+                console.error('Error deleting playlist:', error);
+            }
+        }
+
+        function loadSchedules() {
+            document.getElementById('schedules-list').innerHTML = 
+                '<tr><td colspan="5" style="text-align: center; padding: 40px;">Schedules coming soon...</td></tr>';
+        }
+
+        function loadAnalytics() {
+            // Update stats
+            const stats = document.getElementById('analytics-stats');
+            stats.querySelector('.value').textContent = displays.length;
+            stats.querySelectorAll('.value')[1].textContent = displays.filter(d => d.status === 'online').length;
+            stats.querySelectorAll('.value')[2].textContent = playlists.length;
+        }
+
+        // Initial load
+        loadDisplays();
+        loadPlaylists();
+    </script>
+</body>
+</html>

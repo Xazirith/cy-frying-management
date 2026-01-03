@@ -1,0 +1,43 @@
+# Docker Compose configuration for Signage Service
+# Add this to your main docker-compose.yml
+
+version: '3.8'
+
+services:
+  sentra-signage:
+    build:
+      context: ./services/signage
+      dockerfile: Dockerfile
+    container_name: sentra-signage
+    restart: unless-stopped
+    ports:
+      - "8095:8095"
+    environment:
+      - SERVICE_HOST=0.0.0.0
+      - CORE_URL=http://sentra-core:8080
+      - REGISTRY_URL=http://sentra-registry:8081
+      - AUTH_URL=http://sentra-auth:8082
+      - TENANTS_MODULES_DB=/data/tenants_modules.db
+      - STORAGE_BASE=/opt/sentra-storage
+    volumes:
+      - ./data:/data
+      - ./storage:/opt/sentra-storage
+    networks:
+      - sentra-network
+    depends_on:
+      - sentra-tenants
+      - sentra-gallery
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  sentra-network:
+    driver: bridge
+
+volumes:
+  data:
+  storage:

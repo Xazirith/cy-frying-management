@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentra Signage Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #player-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #000;
+        }
+
+        .content-item {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .content-item.active {
+            opacity: 1;
+            z-index: 10;
+        }
+
+        .content-item.fade-out {
+            opacity: 0;
+        }
+
+        .content-item img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .content-item video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .content-item iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .text-content {
+            padding: 40px;
+            text-align: center;
+            color: #fff;
+            max-width: 90%;
+        }
+
+        .text-content h1 {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .text-content p {
+            font-size: 2rem;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+
+        .weather-widget, .clock-widget {
+            background: rgba(0,0,0,0.6);
+            padding: 60px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            color: #fff;
+            text-align: center;
+        }
+
+        .weather-widget h2, .clock-widget h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .weather-widget .temp {
+            font-size: 6rem;
+            font-weight: bold;
+        }
+
+        .clock-widget .time {
+            font-size: 8rem;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .clock-widget .date {
+            font-size: 2.5rem;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+
+        #status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 10px 20px;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+            justify-content: space-between;
+        }
+
+        #status-bar.visible {
+            display: flex;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .loading-screen h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .loading-screen .spinner {
+            border: 8px solid rgba(255,255,255,0.1);
+            border-top: 8px solid #fff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-screen {
+            background: #c00;
+            color: #fff;
+            padding: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-screen">
+        <h1>Sentra Signage</h1>
+        <div class="spinner"></div>
+        <p id="loading-message" style="margin-top: 20px;">Initializing...</p>
+    </div>
+
+    <div id="player-container"></div>
+
+    <div id="status-bar">
+        <div>
+            <span id="display-name">Display</span> | 
+            <span id="playlist-name">No Playlist</span>
+        </div>
+        <div>
+            <span id="current-item">-/-</span> | 
+            <span id="connection-status">●</span>
+        </div>
+    </div>
+
+    <script>
+        class SignagePlayer {
+            constructor() {
+                this.config = this.loadConfig();
+                this.deviceId = this.config.deviceId || this.generateDeviceId();
+                this.apiUrl = this.config.apiUrl || 'http://localhost:8095';
+                this.tenantId = this.config.tenantId || 'default';
+                this.showStatus = this.config.showStatus !== false;
+                
+                this.display = null;
+                this.playlist = null;
+                this.currentIndex = 0;
+                this.playTimer = null;
+                this.heartbeatTimer = null;
+                this.refreshTimer = null;
+                
+                this.container = document.getElementById('player-container');
+                this.loadingScreen = document.getElementById('loading');
+                this.statusBar = document.getElementById('status-bar');
+                
+                this.saveConfig();
+            }
+
+            loadConfig() {
+                const stored = localStorage.getItem('signage-config');
+                if (stored) {
+                    return JSON.parse(stored);
+                }
+                
+                // Check URL params
+                const params = new URLSearchParams(window.location.search);
+                return {
+                    deviceId: params.get('device_id'),
+                    apiUrl: params.get('api_url'),
+                    tenantId: params.get('tenant_id'),
+                    showStatus: params.get('show_status') !== 'false'
+                };
+            }
+
+            saveConfig() {
+                localStorage.setItem('signage-config', JSON.stringify({
+                    deviceId: this.deviceId,
+                    apiUrl: this.apiUrl,
+                    tenantId: this.tenantId,
+                    showStatus: this.showStatus
+                }));
+            }
+
+            generateDeviceId() {
+                return 'display-' + Date.now() + '-' + Math.random().toString(36).substring(7);
+            }
+
+            async init() {
+                try {
+                    this.updateLoadingMessage('Connecting to server...');
+                    await this.loadDisplayConfig();
+                    
+                    this.updateLoadingMessage('Loading playlist...');
+                    await this.loadPlaylist();
+                    
+                    this.hideLoading();
+                    
+                    if (this.showStatus) {
+                        this.statusBar.classList.add('visible');
+                    }
+                    
+                    this.startPlayback();
+                    this.startHeartbeat();
+                    this.startRefreshTimer();
+                    
+                } catch (error) {
+                    console.error('Initialization error:', error);
+                    this.showError('Failed to initialize: ' + error.message);
+                }
+            }
+
+            async loadDisplayConfig() {
+                const response = await fetch(
+                    `${this.apiUrl}/display/config?device_id=${this.deviceId}`
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load display config');
+                }
+                
+                const data = await response.json();
+                this.display = data.display;
+                this.playlistId = data.playlist_id;
+                
+                this.updateStatus();
+            }
+
+            async loadPlaylist() {
+                const response = await fetch(
+                    `${this.apiUrl}/display/playlist?device_id=${this.deviceId}`
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load playlist');
+                }
+                
+                const data = await response.json();
+                this.playlist = data.playlist;
+                this.displayId = data.display_id;
+                
+                if (!this.playlist || !this.playlist.items || this.playlist.items.length === 0) {
+                    this.showError('No content available');
+                    return;
+                }
+                
+                this.renderPlaylist();
+                this.updateStatus();
+            }
+
+            renderPlaylist() {
+                this.container.innerHTML = '';
+                
+                if (!this.playlist || !this.playlist.items) {
+                    return;
+                }
+                
+                this.playlist.items.forEach((item, index) => {
+                    const element = this.createContentElement(item);
+                    element.dataset.index = index;
+                    this.container.appendChild(element);
+                });
+            }
+
+            createContentElement(item) {
+                const div = document.createElement('div');
+                div.className = 'content-item';
+                div.dataset.duration = item.duration;
+                div.dataset.transition = item.transition;
+                
+                const content = item.resolved_content;
+                
+                if (content.type === 'image') {
+                    const img = document.createElement('img');
+                    img.src = this.getImageUrl(content.data.image_path);
+                    img.alt = content.data.caption || '';
+                    div.appendChild(img);
+                }
+                else if (content.type === 'gallery') {
+                    // For gallery, create slideshow of images
+                    const galleryDiv = document.createElement('div');
+                    galleryDiv.className = 'gallery-slideshow';
+                    galleryDiv.style.width = '100%';
+                    galleryDiv.style.height = '100%';
+                    
+                    content.data.forEach((galleryItem, idx) => {
+                        const img = document.createElement('img');
+                        img.src = this.getImageUrl(galleryItem.image_path);
+                        img.alt = galleryItem.caption || '';
+                        img.style.display = idx === 0 ? 'block' : 'none';
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'contain';
+                        galleryDiv.appendChild(img);
+                    });
+                    
+                    div.appendChild(galleryDiv);
+                }
+                else if (content.type === 'video') {
+                    const video = document.createElement('video');
+                    video.src = content.data.url || this.getMediaUrl(content.data.path);
+                    video.autoplay = false;
+                    video.muted = true;
+                    div.appendChild(video);
+                }
+                else if (content.type === 'url') {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = content.data.url;
+                    iframe.allow = 'autoplay';
+                    div.appendChild(iframe);
+                }
+                else if (content.type === 'text') {
+                    const textDiv = document.createElement('div');
+                    textDiv.className = 'text-content';
+                    textDiv.innerHTML = content.data.content;
+                    div.appendChild(textDiv);
+                }
+                else if (content.type === 'weather') {
+                    const weatherDiv = document.createElement('div');
+                    weatherDiv.className = 'weather-widget';
+                    weatherDiv.innerHTML = `
+                        <h2>${content.data.location || 'Weather'}</h2>
+                        <div class="temp" id="weather-temp-${item.id}">--°</div>
+                        <div class="conditions" id="weather-conditions-${item.id}">Loading...</div>
+                    `;
+                    div.appendChild(weatherDiv);
+                    // TODO: Fetch weather data
+                }
+                else if (content.type === 'clock') {
+                    const clockDiv = document.createElement('div');
+                    clockDiv.className = 'clock-widget';
+                    clockDiv.innerHTML = `
+                        <div class="time" id="clock-time-${item.id}">--:--</div>
+                        <div class="date" id="clock-date-${item.id}">Loading...</div>
+                    `;
+                    div.appendChild(clockDiv);
+                    this.updateClock(item.id, content.data.format, content.data.timezone);
+                }
+                
+                return div;
+            }
+
+            getImageUrl(path) {
+                // Assuming images are served from gallery storage
+                return `${this.apiUrl.replace(':8095', ':8090')}/media/${path}`;
+            }
+
+            getMediaUrl(path) {
+                return `${this.apiUrl}/media/${path}`;
+            }
+
+            startPlayback() {
+                if (!this.playlist || !this.playlist.items || this.playlist.items.length === 0) {
+                    return;
+                }
+                
+                this.showItem(0);
+            }
+
+            showItem(index) {
+                const items = this.container.querySelectorAll('.content-item');
+                
+                if (index >= items.length) {
+                    index = 0;
+                }
+                
+                this.currentIndex = index;
+                const currentItem = items[index];
+                const duration = parseInt(currentItem.dataset.duration) * 1000;
+                
+                // Hide all items
+                items.forEach(item => {
+                    item.classList.remove('active');
+                    item.classList.add('fade-out');
+                });
+                
+                // Show current item
+                currentItem.classList.remove('fade-out');
+                currentItem.classList.add('active');
+                
+                // Handle video playback
+                const video = currentItem.querySelector('video');
+                if (video) {
+                    video.currentTime = 0;
+                    video.play();
+                }
+                
+                // Log analytics
+                this.logAnalytics('playback', {
+                    item_index: index,
+                    content_type: this.playlist.items[index].content_type
+                });
+                
+                this.updateStatus();
+                
+                // Schedule next item
+                clearTimeout(this.playTimer);
+                this.playTimer = setTimeout(() => {
+                    this.showItem(index + 1);
+                }, duration);
+            }
+
+            updateClock(itemId, format = '24h', timezone = 'UTC') {
+                const updateTime = () => {
+                    const timeEl = document.getElementById(`clock-time-${itemId}`);
+                    const dateEl = document.getElementById(`clock-date-${itemId}`);
+                    
+                    if (timeEl && dateEl) {
+                        const now = new Date();
+                        
+                        const timeStr = now.toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: format === '12h',
+                            timeZone: timezone
+                        });
+                        
+                        const dateStr = now.toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            timeZone: timezone
+                        });
+                        
+                        timeEl.textContent = timeStr;
+                        dateEl.textContent = dateStr;
+                    }
+                };
+                
+                updateTime();
+                setInterval(updateTime, 1000);
+            }
+
+            startHeartbeat() {
+                const sendHeartbeat = async () => {
+                    try {
+                        await fetch(`${this.apiUrl}/display/heartbeat`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                device_id: this.deviceId,
+                                status: 'online',
+                                metadata: {
+                                    playlist_id: this.playlistId,
+                                    current_index: this.currentIndex,
+                                    uptime: Date.now() - this.startTime
+                                }
+                            })
+                        });
+                        
+                        this.updateConnectionStatus(true);
+                    } catch (error) {
+                        console.error('Heartbeat failed:', error);
+                        this.updateConnectionStatus(false);
+                    }
+                };
+                
+                this.startTime = Date.now();
+                sendHeartbeat();
+                this.heartbeatTimer = setInterval(sendHeartbeat, 30000); // Every 30 seconds
+            }
+
+            startRefreshTimer() {
+                // Reload playlist every 5 minutes
+                this.refreshTimer = setInterval(async () => {
+                    try {
+                        await this.loadPlaylist();
+                    } catch (error) {
+                        console.error('Refresh failed:', error);
+                    }
+                }, 300000);
+            }
+
+            async logAnalytics(eventType, metadata = {}) {
+                try {
+                    await fetch(`${this.apiUrl}/display/analytics`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            device_id: this.deviceId,
+                            event_type: eventType,
+                            playlist_id: this.playlistId,
+                            content_type: this.playlist?.items[this.currentIndex]?.content_type,
+                            content_id: this.playlist?.items[this.currentIndex]?.content_id,
+                            metadata: metadata
+                        })
+                    });
+                } catch (error) {
+                    console.error('Analytics logging failed:', error);
+                }
+            }
+
+            updateStatus() {
+                if (this.display) {
+                    document.getElementById('display-name').textContent = this.display.name;
+                }
+                
+                if (this.playlist) {
+                    document.getElementById('playlist-name').textContent = this.playlist.name;
+                    document.getElementById('current-item').textContent = 
+                        `${this.currentIndex + 1}/${this.playlist.items.length}`;
+                }
+            }
+
+            updateConnectionStatus(connected) {
+                const statusEl = document.getElementById('connection-status');
+                statusEl.textContent = connected ? '●' : '○';
+                statusEl.style.color = connected ? '#0f0' : '#f00';
+            }
+
+            updateLoadingMessage(message) {
+                document.getElementById('loading-message').textContent = message;
+            }
+
+            hideLoading() {
+                this.loadingScreen.style.display = 'none';
+            }
+
+            showError(message) {
+                this.container.innerHTML = `
+                    <div class="error-screen">
+                        <h1>Error</h1>
+                        <p>${message}</p>
+                        <p style="margin-top: 20px; font-size: 0.9em;">Device ID: ${this.deviceId}</p>
+                        <button onclick="location.reload()" style="margin-top: 30px; padding: 15px 30px; font-size: 1.2rem; cursor: pointer;">
+                            Retry
+                        </button>
+                    </div>
+                `;
+                this.hideLoading();
+            }
+        }
+
+        // Start player on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const player = new SignagePlayer();
+            player.init();
+        });
+
+        // Handle keyboard shortcuts (for admin/debug)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F11') {
+                e.preventDefault();
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    document.documentElement.requestFullscreen();
+                }
+            } else if (e.key === 's' && e.ctrlKey) {
+                e.preventDefault();
+                const statusBar = document.getElementById('status-bar');
+                statusBar.classList.toggle('visible');
+            }
+        });
+    </script>
+</body>
+</html>

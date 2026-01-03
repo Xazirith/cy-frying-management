@@ -28,6 +28,7 @@ from . import messaging
 from . import clients
 from . import quotes
 from . import staff
+from . import signage
 
 # All module schemas for initialization
 ALL_SCHEMAS = [
@@ -42,6 +43,7 @@ ALL_SCHEMAS = [
     clients.SCHEMA,
     quotes.SCHEMA,
     staff.SCHEMA,
+    signage.SCHEMA,
 ]
 
 # Export all modules for direct access
@@ -57,6 +59,7 @@ __all__ = [
     'clients',
     'quotes',
     'staff',
+    'signage',
     'get_tenant_db',
     'init_tenant_db',
     'ALL_SCHEMAS',

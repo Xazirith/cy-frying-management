@@ -1,0 +1,7 @@
+{
+  "service": "signage",
+  "hash": "75962f7df52926337cc4f2fea965419b9656685d374ccdbe46f380900fe23a35",
+  "signature": "c6d2af77d9cd78ded5cf824e7f775c054df07c086e0b895cccdfcca10c16d140",
+  "signed_by": "sentra-dev",
+  "dev_mode": true
+}

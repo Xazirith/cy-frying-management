@@ -545,6 +545,8 @@ class TenantsService(SentraService):
                 return self._handle_quotes(db_conn, tenant_id, item_id, method, query, data)
             elif module_name == "staff":
                 return self._handle_staff(db_conn, tenant_id, item_id, method, query, data)
+            elif module_name == "signage":
+                return self._handle_signage(db_conn, tenant_id, item_id, method, query, data)
             else:
                 return 404, {"ok": False, "error": "module_not_found"}
         finally:
@@ -849,6 +851,145 @@ class TenantsService(SentraService):
                 staff.delete(db_conn, tenant_id, int(item_id))
                 return 200, {"ok": True, "deleted": item_id}
         return 405, {"ok": False, "error": "method_not_allowed"}
+    
+    def _handle_signage(self, db_conn, tenant_id: str, item_id: Optional[str], method: str, query: Dict, data: dict) -> tuple[int, dict]:
+        """Signage module endpoints - comprehensive digital signage management"""
+        
+        # Parse path for sub-resources: /signage/{resource}/{id}/{sub-resource}
+        # Examples:
+        #   /signage/displays
+        #   /signage/displays/123
+        #   /signage/playlists/456/items
+        #   /signage/playlists/456/items/789
+        
+        # Determine resource type from query or item_id structure
+        resource = query.get('_resource', [None])[0]
+        
+        if not resource:
+            # Try to parse from path context if available
+            # For now, default to displays if item_id is numeric, else assume it's a sub-path
+            if item_id and '/' in str(item_id):
+                # Complex path: playlists/456/items
+                parts = str(item_id).split('/')
+                resource = parts[0] if len(parts) > 0 else 'displays'
+                item_id = parts[1] if len(parts) > 1 else None
+                sub_resource = parts[2] if len(parts) > 2 else None
+                sub_id = parts[3] if len(parts) > 3 else None
+            else:
+                resource = 'displays'
+        
+        # DISPLAYS
+        if resource == 'displays':
+            if item_id is None:
+                if method == "GET":
+                    status = query.get("status", [None])[0]
+                    result = signage.get_displays(db_conn, tenant_id, status=status)
+                    return 200, {"ok": True, "displays": result}
+                elif method == "POST":
+                    result = signage.create_display(db_conn, tenant_id, **data)
+                    return 200, {"ok": True, "display": result}
+            else:
+                if method == "GET":
+                    result = signage.get_display(db_conn, tenant_id, int(item_id))
+                    if not result:
+                        return 404, {"ok": False, "error": "display_not_found"}
+                    return 200, {"ok": True, "display": result}
+                elif method == "PUT":
+                    result = signage.update_display(db_conn, tenant_id, int(item_id), **data)
+                    if not result:
+                        return 404, {"ok": False, "error": "display_not_found"}
+                    return 200, {"ok": True, "display": result}
+                elif method == "DELETE":
+                    signage.delete_display(db_conn, tenant_id, int(item_id))
+                    return 200, {"ok": True, "deleted": item_id}
+        
+        # PLAYLISTS
+        elif resource == 'playlists':
+            if item_id is None:
+                if method == "GET":
+                    active_only = query.get("active", ["false"])[0] == "true"
+                    result = signage.get_playlists(db_conn, tenant_id, active_only=active_only)
+                    return 200, {"ok": True, "playlists": result}
+                elif method == "POST":
+                    result = signage.create_playlist(db_conn, tenant_id, **data)
+                    return 200, {"ok": True, "playlist": result}
+            else:
+                # Check for sub-resource (items)
+                sub_resource = query.get('_sub_resource', [None])[0]
+                sub_id = query.get('_sub_id', [None])[0]
+                
+                if sub_resource == 'items':
+                    # Playlist items
+                    if sub_id is None:
+                        if method == "GET":
+                            result = signage.get_playlist_items(db_conn, int(item_id))
+                            return 200, {"ok": True, "items": result}
+                        elif method == "POST":
+                            result = signage.create_playlist_item(db_conn, int(item_id), **data)
+                            return 200, {"ok": True, "item": result}
+                    else:
+                        if method == "PUT":
+                            result = signage.update_playlist_item(db_conn, int(sub_id), **data)
+                            if not result:
+                                return 404, {"ok": False, "error": "item_not_found"}
+                            return 200, {"ok": True, "item": result}
+                        elif method == "DELETE":
+                            signage.delete_playlist_item(db_conn, int(sub_id))
+                            return 200, {"ok": True, "deleted": sub_id}
+                else:
+                    # Regular playlist operations
+                    if method == "GET":
+                        result = signage.get_playlist(db_conn, tenant_id, int(item_id))
+                        if not result:
+                            return 404, {"ok": False, "error": "playlist_not_found"}
+                        return 200, {"ok": True, "playlist": result}
+                    elif method == "PUT":
+                        result = signage.update_playlist(db_conn, tenant_id, int(item_id), **data)
+                        if not result:
+                            return 404, {"ok": False, "error": "playlist_not_found"}
+                        return 200, {"ok": True, "playlist": result}
+                    elif method == "DELETE":
+                        signage.delete_playlist(db_conn, tenant_id, int(item_id))
+                        return 200, {"ok": True, "deleted": item_id}
+        
+        # SCHEDULES
+        elif resource == 'schedules':
+            if item_id is None:
+                if method == "GET":
+                    display_id = query.get("display_id", [None])[0]
+                    display_id = int(display_id) if display_id else None
+                    result = signage.get_schedules(db_conn, display_id=display_id)
+                    return 200, {"ok": True, "schedules": result}
+                elif method == "POST":
+                    result = signage.create_schedule(db_conn, **data)
+                    return 200, {"ok": True, "schedule": result}
+            else:
+                if method == "PUT":
+                    result = signage.update_schedule(db_conn, int(item_id), **data)
+                    if not result:
+                        return 404, {"ok": False, "error": "schedule_not_found"}
+                    return 200, {"ok": True, "schedule": result}
+                elif method == "DELETE":
+                    signage.delete_schedule(db_conn, int(item_id))
+                    return 200, {"ok": True, "deleted": item_id}
+        
+        # ANALYTICS
+        elif resource == 'analytics':
+            if method == "GET":
+                display_id = query.get("display_id", [None])[0]
+                display_id = int(display_id) if display_id else None
+                start_date = query.get("start_date", [None])[0]
+                end_date = query.get("end_date", [None])[0]
+                limit = int(query.get("limit", [100])[0])
+                result = signage.get_analytics(db_conn, tenant_id, display_id=display_id,
+                                              start_date=start_date, end_date=end_date, limit=limit)
+                return 200, {"ok": True, "analytics": result}
+            elif method == "POST":
+                # This is typically called by display service, but allow for manual logging
+                signage.log_analytics(db_conn, **data)
+                return 200, {"ok": True}
+        
+        return 404, {"ok": False, "error": "signage_resource_not_found"}
 
     # ==================== RESOLUTION ====================
 

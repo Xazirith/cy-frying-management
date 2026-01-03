@@ -9,8 +9,8 @@ RUN pip install --no-cache-dir requests
 COPY base_service.py /app/
 
 # Copy tenants service and modules
-COPY tenants/tenants_service.py /app/
-COPY tenants/modules/ /app/modules/
+COPY tenants_service.py /app/
+COPY modules/ /app/modules/
 
 # Create data directory
 RUN mkdir -p /data && chmod 777 /data
