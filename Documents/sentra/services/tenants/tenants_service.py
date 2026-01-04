@@ -562,14 +562,14 @@ class TenantsService(SentraService):
                 featured = (query.get("featured") or [None])[0]
                 page = int((query.get("page") or [1])[0])
                 per_page = int((query.get("per_page") or [50])[0])
-                result = gallery.get_all(db_conn, tenant_id, tag=tag, featured=featured == 'true', page=page, per_page=per_page)
+                result = gallery.get_gallery(db_conn, tenant_id, tag=tag, featured=featured == 'true', page=page, per_page=per_page)
                 return 200, {"ok": True, **result}
             elif method == "POST":
                 result = gallery.create_item(db_conn, tenant_id, **data)
                 return 200, {"ok": True, "item": result}
         else:
             if method == "GET":
-                result = gallery.get_by_id(db_conn, tenant_id, int(item_id))
+                result = gallery.get_item(db_conn, tenant_id, int(item_id))
                 if not result:
                     return 404, {"ok": False, "error": "item_not_found"}
                 return 200, {"ok": True, "item": result}
