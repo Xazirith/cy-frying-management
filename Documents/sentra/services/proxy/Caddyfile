@@ -1,0 +1,79 @@
+{
+    auto_https off
+}
+
+# Service subdomains
+http://registry.sentrasys.dev {
+    reverse_proxy sentra-registry:8081
+}
+
+http://dns.sentrasys.dev {
+    reverse_proxy sentra-dns:8084
+}
+
+http://auth.sentrasys.dev {
+    reverse_proxy sentra-auth:8082
+}
+
+http://deploy.sentrasys.dev {
+    reverse_proxy sentra-deploy:8083
+}
+
+http://metrics.sentrasys.dev {
+    reverse_proxy sentra-metrics:8087
+}
+
+http://telemetry.sentrasys.dev {
+    reverse_proxy sentra-telemetry:8085
+}
+
+http://vpn.sentrasys.dev {
+    reverse_proxy sentra-vpn:8086
+}
+
+http://tenants.sentrasys.dev {
+    reverse_proxy sentra-core-sentra-tenants-1:8088
+}
+
+http://gallery.sentrasys.dev {
+    reverse_proxy sentra-gallery:8090
+}
+
+http://dash.sentrasys.dev {
+    reverse_proxy sentra-dash:80
+}
+
+http://core.sentrasys.dev {
+    reverse_proxy sentra-core:65085
+}
+
+# Default - dashboard, but route APIs to their services
+http://sentrasys.dev {
+    @auth path /api/auth*
+    reverse_proxy @auth sentra-auth:8082
+
+    @gallery path /api/gallery*
+    reverse_proxy @gallery sentra-gallery:8090
+
+    @app path /api/app*
+    reverse_proxy @app sentra-gallery:8090
+
+    @repo path /api/sentra-repo*
+    reverse_proxy @repo sentra-core:65085
+
+    @admin path /api/admin*
+    reverse_proxy @admin sentra-core:65085
+
+    @tenants path /api/tenants*
+    reverse_proxy @tenants sentra-core-sentra-tenants-1:8088
+
+    reverse_proxy sentra-dash:80
+}
+
+http://signage.sentrasys.dev {
+    reverse_proxy sentra-signage:8095
+}
+
+http://inventree.sentrasys.dev {
+    reverse_proxy inventree-proxy:80
+}
