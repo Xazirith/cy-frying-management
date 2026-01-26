@@ -1,5 +1,11 @@
 #!/bin/bash
 # Build, sign, and publish Moore's Sales to Sentra Repo
+#
+# Usage:
+#   ./publish.sh                    # Normal publish (creates new version)
+#   OVERWRITE=true ./publish.sh     # Overwrite existing version if it exists
+#   VERSION=1.2.3 ./publish.sh       # Publish specific version
+#   CHANNEL=beta ./publish.sh       # Publish to beta channel
 
 set -e
 
@@ -10,6 +16,7 @@ CHANNEL="${CHANNEL:-stable}"
 REPO_BASE="${REPO_BASE:-https://sentrasys.dev}"
 CORE_AUTH_TOKEN="${CORE_AUTH_TOKEN:-${SENTRA_API_KEY:-}}"
 TOKEN_FILE="${TOKEN_FILE:-$HOME/.sentra/repo.key}"
+OVERWRITE="${OVERWRITE:-false}"
 
 if [ -z "$CORE_AUTH_TOKEN" ] && [ -f "$TOKEN_FILE" ]; then
   CORE_AUTH_TOKEN="$(cat "$TOKEN_FILE" 2>/dev/null | tr -d '\n')"
@@ -102,6 +109,7 @@ APP_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
   -H "Authorization: Bearer $CORE_AUTH_TOKEN" \
   "$REPO_BASE/api/sentra-repo/apps/$APP_ID")
 if [ "$APP_EXISTS" != "200" ]; then
+  echo "📝 App doesn't exist, creating..."
   curl -s -X POST "$REPO_BASE/api/sentra-repo/apps" \
     -H "Authorization: Bearer $CORE_AUTH_TOKEN" \
     -H "Content-Type: application/json" \
@@ -111,25 +119,75 @@ if [ "$APP_EXISTS" != "200" ]; then
       \"description\": \"Moore's Sales dashboard app for Android\",
       \"package_type\": \"firmware\",
       \"author\": \"sentra\",
-      \"homepage\": \"https://sentrasys.dev\",
-      \"tags\": [\"android\", \"media\", \"sales\"]
+      \"homepage\": \"https://sentrasys.dev\"
     }" > /dev/null 2>&1 || true
+else
+  echo "✅ App already exists, skipping creation"
 fi
 
 # Upload source (APK as source)
 echo "⬆️  Uploading APK to repo..."
+
+# Check if version already exists
+EXISTING_VERSION_ID=$(curl -s "$REPO_BASE/api/sentra-repo/apps/$APP_ID/versions" \
+  -H "Authorization: Bearer $CORE_AUTH_TOKEN" | \
+  python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for v in data.get('versions', []):
+        if v.get('version') == '$VERSION':
+            print(v.get('version_id', ''))
+            break
+except:
+    pass
+    " 2>/dev/null)
+
+if [ -n "$EXISTING_VERSION_ID" ]; then
+  echo "⚠️  Version $VERSION already exists!"
+  echo -n "   Do you want to overwrite it? (y/N): "
+  read -r response
+  case "$response" in
+    [yY]|[yY][eE][sS])
+      echo "📝 Overwriting existing version $EXISTING_VERSION_ID..."
+      OVERWRITE_VERSION=true
+      ;;
+    *)
+      echo "❌ Keeping existing version. Aborting."
+      exit 1
+      ;;
+  esac
+fi
+
 UPLOAD_RESP=""
 for attempt in 1 2 3; do
-  UPLOAD_RESP=$(curl -s -X POST "$REPO_BASE/api/sentra-repo/apps/$APP_ID/source" \
-    -H "Authorization: Bearer $CORE_AUTH_TOKEN" \
-    -H "Content-Type: application/json" \
-    --max-time 300 \
-    --data-binary @"$UPLOAD_JSON" 2>/dev/null)
-  
+  if [ "$OVERWRITE_VERSION" = "true" ]; then
+    UPLOAD_RESP=$(curl -s -X POST "$REPO_BASE/api/sentra-repo/versions/$EXISTING_VERSION_ID/source" \
+      -H "Authorization: Bearer $CORE_AUTH_TOKEN" \
+      -H "Content-Type: application/json" \
+      --max-time 600 \
+      --connect-timeout 30 \
+      --keepalive-time 60 \
+      --data-binary @"$UPLOAD_JSON" 2>/dev/null || echo "curl_failed")
+  else
+    UPLOAD_RESP=$(curl -s -X POST "$REPO_BASE/api/sentra-repo/apps/$APP_ID/source" \
+      -H "Authorization: Bearer $CORE_AUTH_TOKEN" \
+      -H "Content-Type: application/json" \
+      --max-time 600 \
+      --connect-timeout 30 \
+      --keepalive-time 60 \
+      --data-binary @"$UPLOAD_JSON" 2>/dev/null || echo "curl_failed")
+  fi
+
   if echo "$UPLOAD_RESP" | grep -q "\"version_id\""; then
+    if [ "$OVERWRITE_VERSION" = "true" ]; then
+      echo "✅ Version $VERSION overwritten successfully"
+    fi
     break
   fi
+
   echo "⚠️  Upload attempt $attempt failed, retrying..."
+  echo "Response: $UPLOAD_RESP"
   sleep 5
 done
 UPLOAD_RESP_FILE="/tmp/sentra_repo_upload_resp.json"
@@ -169,7 +227,7 @@ curl -s -X POST "$REPO_BASE/api/sentra-repo/versions/$VERSION_ID/sign-publish" \
   -d '{"signed_by":"auto"}' > /dev/null
 
 # Set channel pointer
-echo "🎯 Setting stable channel..."
+echo "🎯 Setting $CHANNEL channel..."
 curl -s -X POST "$REPO_BASE/api/sentra-repo/apps/$APP_ID/channels/$CHANNEL" \
   -H "Authorization: Bearer $CORE_AUTH_TOKEN" \
   -H "Content-Type: application/json" \
@@ -187,6 +245,6 @@ if [ -n "$DOWNLOAD_MODE" ] || [ -n "$DOWNLOAD_TOKEN" ]; then
 fi
 
 echo ""
-echo "✅ Done! Moore's Sales v$VERSION published to stable channel"
+echo "✅ Done! Moore's Sales v$VERSION published to $CHANNEL channel"
 echo "   Download: $REPO_BASE/api/sentra-repo/download/$VERSION_ID"
 echo "   Latest: $REPO_BASE/api/sentra-repo/public/latest/$APP_ID/$CHANNEL"
