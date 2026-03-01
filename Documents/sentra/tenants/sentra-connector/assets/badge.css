@@ -1,0 +1,39 @@
+.sentra-badge{
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9999;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(122,77,255,0.45);
+  background: rgba(10,12,18,0.88);
+  color: #e6e9f0;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+
+.sentra-badge__brand{
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #cbb1ff;
+  margin-bottom: 6px;
+}
+
+.sentra-badge__text{
+  color: rgba(230,233,240,0.88);
+}
+
+@media (max-width: 640px){
+  .sentra-badge{
+    right: 12px;
+    bottom: 12px;
+    max-width: 220px;
+    font-size: 11px;
+  }
+}
