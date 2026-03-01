@@ -3,14 +3,14 @@
  * Plugin Name: SentraSystems
  * Plugin URI: https://sentrasys.dev
  * Description: Official Sentra Systems connector for WordPress tenants.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Sentra Systems
  * Author URI: https://sentrasys.dev
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('SENTRASYSTEMS_VERSION', '1.1.0');
+define('SENTRASYSTEMS_VERSION', '1.2.0');
 define('SENTRASYSTEMS_PATH', plugin_dir_path(__FILE__));
 define('SENTRASYSTEMS_URL', plugin_dir_url(__FILE__));
 

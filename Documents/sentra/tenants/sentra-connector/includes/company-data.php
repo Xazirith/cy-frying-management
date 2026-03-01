@@ -1,13 +1,14 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-define('SENTRASYSTEMS_COMPANY_DB_VERSION', '1.1.0');
+define('SENTRASYSTEMS_COMPANY_DB_VERSION', '1.2.0');
 
 function sentrasystems_company_tables() {
 	global $wpdb;
 	$tables = [
 		'clients'  => $wpdb->prefix . 'sentra_clients',
 		'jobs'     => $wpdb->prefix . 'sentra_jobs',
+		'gallery'  => $wpdb->prefix . 'sentra_gallery',
 		'quotes'   => $wpdb->prefix . 'sentra_quotes',
 		'invoices' => $wpdb->prefix . 'sentra_invoices',
 		'payments' => $wpdb->prefix . 'sentra_invoice_payments',
@@ -70,6 +71,34 @@ function sentrasystems_company_install() {
 		KEY client_id (client_id),
 		KEY status (status),
 		KEY due_date (due_date)
+	) {$charset};";
+
+	$sql[] = "CREATE TABLE {$tables['gallery']} (
+		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+		tenant_id VARCHAR(64) NOT NULL,
+		sentra_id VARCHAR(64) NULL,
+		title VARCHAR(190) NULL,
+		caption LONGTEXT NULL,
+		tag VARCHAR(190) NULL,
+		media_url VARCHAR(255) NULL,
+		thumbnail_url VARCHAR(255) NULL,
+		file_path VARCHAR(255) NULL,
+		image_path VARCHAR(255) NULL,
+		cover_image VARCHAR(255) NULL,
+		mime_type VARCHAR(120) NULL,
+		status VARCHAR(40) NULL,
+		sort_order INT NULL,
+		is_featured TINYINT(1) NOT NULL DEFAULT 0,
+		metadata LONGTEXT NULL,
+		created_by VARCHAR(64) NULL,
+		updated_by VARCHAR(64) NULL,
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		PRIMARY KEY  (id),
+		KEY tenant_id (tenant_id),
+		KEY sentra_id (sentra_id),
+		KEY status (status),
+		KEY sort_order (sort_order)
 	) {$charset};";
 
 	$sql[] = "CREATE TABLE {$tables['quotes']} (
@@ -252,6 +281,7 @@ function sentrasystems_company_allowed_resources() {
 	$resources = [
 		'clients',
 		'jobs',
+		'gallery',
 		'quotes',
 		'invoices',
 		'payments',
@@ -277,6 +307,13 @@ function sentrasystems_company_resource_schema($resource) {
 			'search' => ['title', 'description', 'notes'],
 			'filters' => ['status', 'client_id'],
 			'orderby' => ['id', 'title', 'status', 'due_date', 'updated_at', 'created_at'],
+		],
+		'gallery' => [
+			'table' => $tables['gallery'],
+			'fields' => ['sentra_id', 'title', 'caption', 'tag', 'media_url', 'thumbnail_url', 'file_path', 'image_path', 'cover_image', 'mime_type', 'status', 'sort_order', 'is_featured', 'metadata', 'created_by', 'updated_by'],
+			'search' => ['title', 'caption', 'tag'],
+			'filters' => ['status', 'tag', 'is_featured'],
+			'orderby' => ['id', 'sort_order', 'updated_at', 'created_at'],
 		],
 		'quotes' => [
 			'table' => $tables['quotes'],
@@ -319,11 +356,11 @@ function sentrasystems_company_resource_schema($resource) {
 }
 
 function sentrasystems_company_prepare_value($field, $value) {
-	$int_fields = ['client_id', 'job_id', 'invoice_id', 'wp_user_id', 'staff_id'];
+	$int_fields = ['client_id', 'job_id', 'invoice_id', 'wp_user_id', 'staff_id', 'sort_order', 'is_featured'];
 	$float_fields = ['estimated_hours', 'actual_hours', 'total', 'balance', 'amount'];
 	$date_fields = ['start_date', 'due_date', 'issued_at'];
 	$datetime_fields = ['received_at'];
-	$json_fields = ['tags', 'line_items', 'permissions', 'meta'];
+	$json_fields = ['tags', 'line_items', 'permissions', 'meta', 'metadata'];
 
 	if (in_array($field, $json_fields, true)) {
 		if (is_array($value)) {
@@ -937,7 +974,7 @@ function sentrasystems_company_archive_remote_record(string $tenant_id, string $
 function sentrasystems_company_tables_have_local_data(): bool {
 	global $wpdb;
 	$tables = sentrasystems_company_tables();
-	foreach (['clients', 'jobs', 'quotes', 'invoices', 'messages', 'staff'] as $resource) {
+	foreach (['clients', 'jobs', 'gallery', 'quotes', 'invoices', 'messages', 'staff'] as $resource) {
 		$table = $tables[$resource] ?? '';
 		if ($table && (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}") > 0) {
 			return true;
@@ -967,7 +1004,7 @@ function sentrasystems_company_import_remote_data(bool $force = false): array {
 	}
 
 	$tables = sentrasystems_company_tables();
-	$counts = ['clients' => 0, 'jobs' => 0, 'quotes' => 0, 'invoices' => 0, 'payments' => 0, 'messages' => 0, 'staff' => 0, 'archive' => 0];
+	$counts = ['clients' => 0, 'jobs' => 0, 'gallery' => 0, 'quotes' => 0, 'invoices' => 0, 'payments' => 0, 'messages' => 0, 'staff' => 0, 'archive' => 0];
 	$errors = [];
 	$client_map = [];
 	$job_map = [];
@@ -1035,6 +1072,56 @@ function sentrasystems_company_import_remote_data(bool $force = false): array {
 		if ($local_id > 0) {
 			$job_map[$remote_id] = $local_id;
 			$counts['jobs']++;
+		}
+	}
+
+	$gallery = sentrasystems_company_remote_collect($tenant_id, 'gallery');
+	if (is_wp_error($gallery)) {
+		$error_data = $gallery->get_error_data();
+		$error_status = is_array($error_data) ? (int) ($error_data['status'] ?? 0) : 0;
+		if ($error_status !== 404) {
+			$errors[] = 'gallery: ' . $gallery->get_error_message();
+		}
+		$gallery = [];
+	}
+	foreach ($gallery as $remote) {
+		$remote_id = trim((string) sentrasystems_company_pick($remote, ['item_id', 'id', 'gallery_id'], ''));
+		if ($remote_id === '') {
+			$remote_id = sentrasystems_company_remote_id($remote, 'gallery');
+		}
+		sentrasystems_company_archive_remote_record($tenant_id, 'gallery', $remote_id, $remote);
+		$counts['archive']++;
+		$is_featured_raw = sentrasystems_company_pick($remote, ['is_featured', 'featured', 'isFeatured'], false);
+		$is_featured = false;
+		if (is_bool($is_featured_raw)) {
+			$is_featured = $is_featured_raw;
+		} else {
+			$is_featured = in_array(strtolower(trim((string) $is_featured_raw)), ['1', 'true', 'yes', 'on'], true);
+		}
+		$row = [
+			'tenant_id' => $tenant_id,
+			'sentra_id' => $remote_id,
+			'title' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['title', 'name'], '')),
+			'caption' => (string) sentrasystems_company_pick($remote, ['caption', 'description'], ''),
+			'tag' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['tag'], '')),
+			'media_url' => esc_url_raw((string) sentrasystems_company_pick($remote, ['media_url'], '')),
+			'thumbnail_url' => esc_url_raw((string) sentrasystems_company_pick($remote, ['thumbnail_url'], '')),
+			'file_path' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['file_path'], '')),
+			'image_path' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['image_path'], '')),
+			'cover_image' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['cover_image'], '')),
+			'mime_type' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['mime_type', 'content_type'], '')),
+			'status' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['status'], 'active')),
+			'sort_order' => sentrasystems_company_pick($remote, ['sort_order', 'position', 'sort'], null),
+			'is_featured' => $is_featured ? 1 : 0,
+			'metadata' => wp_json_encode(sentrasystems_company_pick($remote, ['metadata', 'meta'], [])),
+			'created_by' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['created_by'], '')),
+			'updated_by' => sanitize_text_field((string) sentrasystems_company_pick($remote, ['updated_by'], '')),
+			'created_at' => sentrasystems_company_to_datetime(sentrasystems_company_pick($remote, ['created_at', 'created'], '')),
+			'updated_at' => sentrasystems_company_to_datetime(sentrasystems_company_pick($remote, ['updated_at', 'updated'], '')),
+		];
+		$local_id = sentrasystems_company_upsert_by_lookup($tables['gallery'], $row, 'sentra_id', $remote_id, $tenant_id);
+		if ($local_id > 0) {
+			$counts['gallery']++;
 		}
 	}
 

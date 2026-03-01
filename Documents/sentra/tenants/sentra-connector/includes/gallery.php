@@ -1,6 +1,54 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+function sentrasystems_local_gallery($limit = 9) {
+    global $wpdb;
+
+    if (!function_exists('sentrasystems_company_tables') || !function_exists('sentrasystems_config')) {
+        return [];
+    }
+
+    $tables = sentrasystems_company_tables();
+    $table = $tables['gallery'] ?? '';
+    if ($table === '') {
+        return [];
+    }
+
+    $exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
+    if ($exists !== $table) {
+        return [];
+    }
+
+    $cfg = sentrasystems_config();
+    $tenant_id = trim((string) ($cfg['tenant_id'] ?? ''));
+    if ($tenant_id === '') {
+        return [];
+    }
+
+    $limit = max(1, (int) $limit);
+    $query = $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE tenant_id = %s ORDER BY is_featured DESC, sort_order ASC, updated_at DESC, id DESC LIMIT %d",
+        $tenant_id,
+        $limit
+    );
+    $items = $wpdb->get_results($query, ARRAY_A);
+    if (!is_array($items) || !$items) {
+        return [];
+    }
+
+    foreach ($items as &$item) {
+        if (!empty($item['metadata']) && is_string($item['metadata'])) {
+            $decoded = json_decode($item['metadata'], true);
+            if (is_array($decoded)) {
+                $item['metadata'] = $decoded;
+            }
+        }
+    }
+    unset($item);
+
+    return $items;
+}
+
 /**
  * Fetch gallery items from Sentra Media API
  */
@@ -9,7 +57,14 @@ function sentra_get_gallery($limit = 9) {
     $limit = max(1, (int) $limit);
 
     $cfg = sentrasystems_config();
-    $cache_key = 'sentra_gallery_' . md5(($cfg['media_base'] ?? '') . '|' . $cfg['tenant_id'] . '|' . $limit);
+    $cache_key = 'sentra_gallery_local_' . md5(($cfg['media_base'] ?? '') . '|' . $cfg['tenant_id'] . '|' . $limit);
+
+    $local_items = sentrasystems_local_gallery($limit);
+    if (!empty($local_items)) {
+        set_transient($cache_key, $local_items, $cfg['cache_ttl']);
+        sentrasystems_cache_store_stale($cache_key, $local_items);
+        return $local_items;
+    }
 
     $cached = get_transient($cache_key);
     if ($cached !== false && is_array($cached)) {
